@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <h1>회원가입</h1>
+    <form action="/db/register" method="post">
+        ID : <input type="text" name="id" required maxlength="10"> <br>
+        PW : <input type="password" name="pw" required maxlength="10"> <br>
+        NICK : <input type="text" name="nick" required maxlength="10"> <br>
+        위도 : <input type="text" name="latitude" required maxlength="10"> <br>
+        경도 : <input type="text" name="longitude" required maxlength="10"> <br>
+        <input type="submit" value="회원가입">
+    </form>
+</body>
+</html>
