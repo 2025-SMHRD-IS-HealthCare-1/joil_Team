@@ -1,17 +1,147 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>VitaMind - 로그인</title>
+    <style>
+        /* 3번 CSS 적용 */
+        body, html { 
+            margin: 0; 
+            padding: 0; 
+            font-family: "Noto Sans KR", sans-serif; 
+            font-size: 33px; 
+            background-color: #f5f5f5;
+        }
+        .container { 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            padding: 30px; 
+            box-sizing: border-box;
+        }
+        h1 { 
+            font-size: 60px; 
+            color: #00796B; 
+            margin-bottom: 50px;
+        }
+        .form-container { 
+            width: 100%; 
+            max-width: 600px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 25px; 
+            background-color: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        input { 
+            font-size: 35px; 
+            padding: 25px; 
+            border: 3px solid #ccc; 
+            border-radius: 15px; 
+        }
+        button { 
+            font-size: 37px; 
+            padding: 25px; 
+            border-radius: 15px; 
+            border: none; 
+            cursor: pointer; 
+            font-weight: bold;
+            display: inline-block;
+        }
+        .btn-primary { 
+            background-color: #00796B; 
+            color: white; 
+        }
+        .utility-buttons { 
+            display: flex; 
+            justify-content: space-around; 
+            margin-top: 20px; 
+        }
+        .utility-buttons a { 
+            font-size: 31px; 
+            color: #555; 
+            text-decoration: underline; 
+            cursor: pointer; 
+        }
+        .links { 
+            margin-top: 40px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px; 
+            font-size: 28px;
+        }
+        .links a { 
+            color: #00796B; 
+            text-decoration: none; 
+        }
+    </style>
 </head>
 <body>
-    <h1>회원관리 시스템</h1>
-    <a href="/register">회원가입 페이지</a>
-    <a href="/login">로그인 페이지</a>
-    <a href="/update">회원정보 수정 페이지</a>
-    <a href="/delete">회원탈퇴 페이지</a>
+    <div class="container">
+        <h1>VitaMind</h1>
+        <div class="form-container">
+            <!-- 2번 login form 적용 -->
+            <form id="loginForm">
+                <input type="text" name="id" placeholder="아이디" required maxlength="10"> <br>
+                <input type="password" name="pw" placeholder="비밀번호" required maxlength="10"> <br>
+                <button type="submit" class="btn-primary">로그인</button>
+            </form>
 
-    <a href="/project">project 페이지</a>
+            
+
+            <div class="utility-buttons">
+                <a onclick="goToSignup()">회원가입</a>
+            </div>
+        </div>
+
+        <!-- 1번 main.html 링크들 적용 -->
+        <div class="links">
+            <a href="/login">로그인 페이지</a>
+            <a href="/update">회원정보 수정 페이지</a>
+            <a href="/delete">회원탈퇴 페이지</a>
+            <a href="/project">project 페이지</a>
+        </div>
+    </div>
+
+    <script>
+        // 로그인 기능 (2번)
+        const form = document.getElementById('loginForm');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const id = form.id.value;
+            const pw = form.pw.value;
+
+            try {
+                const res = await fetch('/db/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ id, pw })
+                });
+
+                if (res.ok) {
+                    // 로그인 성공 시 project 페이지로 이동
+                    window.location.href = '/project';
+                } else {
+                    alert('로그인 실패! 아이디/비밀번호를 확인하세요.');
+                }
+            } catch (err) {
+                alert('서버 오류 발생!');
+                console.error(err);
+            }
+        });
+
+        // 회원가입 페이지 이동
+        function goToSignup() {
+            window.location.href = '/register';
+        }
+    </script>
 </body>
 </html>

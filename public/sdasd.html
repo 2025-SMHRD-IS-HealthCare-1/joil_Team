@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>VitaMind - 시니어 헬스케어</title>
+
+</html>
+<style>
+  body, html { margin: 0; padding: 0; background-color: #F8F9FA; font-family: "Noto Sans KR", sans-serif; font-size: 33px; }
+  .app { display: flex; flex-direction: column; height: 100vh; }
+  header {
+    background-color: #00796B; color: white;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 25px 35px; font-size: 45px; font-weight: 900;
+  }
+  .header-title { cursor: pointer; }
+  .header-icons { display: flex; align-items: center; gap: 20px; }
+  .mic-button { background: none; border: none; color: white; font-size: 65px; cursor: pointer; }
+  .mic-button.active { color: #FF5722; }
+  .logout-button {
+      font-size: 30px; background: none; color: white;
+      border: 3px solid white; border-radius: 15px; padding: 10px 20px;
+      cursor: pointer; font-weight: bold;
+  }
+  main { flex: 1; overflow-y: auto; background: white; }
+  .main-content { padding: 35px; }
+  section { display: none; }
+  section.active { display: block; }
+  h2 { font-size: 47px; margin-bottom: 25px; }
+
+  /* 로그인 & 회원가입 화면 스타일 */
+  .auth-container { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; padding: 30px; box-sizing: border-box; }
+  .auth-container h1 { font-size: 60px; color: #00796B; }
+  .form-container { width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 25px; }
+  .form-container input { font-size: 35px; padding: 25px; border: 3px solid #ccc; border-radius: 15px; }
+  .form-container button { font-size: 37px; padding: 25px; border-radius: 15px; border: none; cursor: pointer; font-weight: bold; }
+  .form-container .btn-primary { background-color: #00796B; color: white; }
+  .form-container .btn-secondary { background-color: #f0f0f0; color: #333; margin-top: 15px; }
+  .utility-buttons { text-align: center; margin-top: 20px; }
+  .utility-buttons a { font-size: 31px; color: #555; text-decoration: underline; cursor: pointer; }
+
+  /* 홈 화면 */
+  section#home.active { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; box-sizing: border-box; padding-bottom: 100px; }
+  #home h2 { font-size: 80px; margin-bottom: 50px; }
+  .home-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; width: 100%; }
+  .home-menu button { padding: 60px 30px; font-size: 42px; border: 10px solid #00796B; border-radius: 25px; background-color: #E0F2F1; color: #004D40; cursor: pointer; }
+  
+  nav { display: flex; justify-content: center; align-items: center; background-color: #f0f0f0; border-top: 5px solid #ccc; padding: 20px 0; }
+  .home-btn-bottom { font-size: 40px; font-weight: bold; padding: 20px 80px; border-radius: 20px; border: 5px solid #555; background-color: white; color: #333; cursor: pointer; }
+  .content-pane { max-width: 1200px; margin: 0 auto; }
+  
+  /* 달력 스타일 */
+  .calendar-container { margin-top: 20px; }
+  .calendar-header { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 35px; font-weight: bold; padding-bottom: 15px; border-bottom: 3px solid #00796B; }
+  .calendar-header div:first-child { color: red; } .calendar-header div:last-child { color: blue; }
+  .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); border-left: 1px solid #ddd; }
+  .calendar-day { min-height: 180px; padding: 10px; border-right: 1px solid #ddd; border-bottom: 1px solid #ddd; display: flex; flex-direction: column; }
+  .calendar-day.empty { background-color: #f9f9f9; }
+  .day-number { font-size: 32px; font-weight: bold; }
+  .calendar-day.today .day-number { background-color: #FF5722; color: white; border-radius: 50%; width: 45px; height: 45px; display: inline-flex; justify-content: center; align-items: center; }
+  .day-event { font-size: 28px; margin-top: 10px; background-color: #E0F2F1; padding: 8px; border-radius: 8px; line-height: 1.4; }
+
+  /* (기존 다른 스타일들은 여기에 그대로 유지됩니다) */
+  .friend-card { display: flex; justify-content: space-between; align-items: center; border: 5px solid #BDBDBD; border-radius: 20px; padding: 30px; margin-bottom: 25px; background-color: #FAFAFA; } .friend-info { flex-grow: 1; } .friend-name { font-size: 39px; font-weight: bold; color: #004D40; } .chat-btn { font-size: 35px; padding: 20px 30px; background-color: #00796B; color: white; border: none; border-radius: 15px; flex-shrink: 0; }
+  #chat-area { height: 60vh; border: 3px solid #ccc; border-radius: 15px; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; } .chat-bubble { padding: 20px; border-radius: 20px; max-width: 80%; line-height: 1.5; } .user-bubble { background-color: #DCF8C6; align-self: flex-end; } .friend-bubble { background-color: #ECECEC; align-self: flex-start; } .system-bubble { background-color: #f0f0f0; align-self: center; font-size: 28px; color: #555; } .chat-input-container { display: flex; gap: 15px; margin-top: 20px; } #chat-input { flex-grow: 1; font-size: 35px; padding: 20px; border: 3px solid #ccc; border-radius: 15px; } #chat-send-btn { font-size: 35px; padding: 0 40px; font-weight: bold; background-color: #00796B; color: white; border: none; border-radius: 15px; cursor: pointer; }
+  #product-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; } .product-card { display: flex; flex-direction: column; align-items: center; justify-content: space-between; border: 5px solid #BDBDBD; border-radius: 15px; padding: 20px; text-align: center; } .product-card span { font-size: 30px; margin-bottom: 15px; } .product-card button { font-size: 30px; padding: 15px 25px; background-color: #00796B; color: white; border: none; border-radius: 15px; width: 100%; } #cart { background-color: #f1f1f1; border-radius: 15px; padding: 25px; margin-top: 25px; }
+  .delivery-btn { width: 100%; font-size: 45px; padding: 30px; border-radius: 20px; border: none; background-color: #FF5722; color: white; font-weight: bold; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.3); margin-top: 30px; }
+  #delivery .form-group { margin-bottom: 30px; } #delivery label { font-size: 35px; font-weight: bold; display: block; margin-bottom: 15px; } #delivery input, #delivery select { width: 100%; font-size: 35px; padding: 20px; border: 3px solid #ccc; border-radius: 15px; box-sizing: border-box; } .confirm-delivery-btn { width: 100%; background-color: #00796B; color: white; font-size: 45px; padding: 30px; border-radius: 20px; border: none; font-weight: bold; cursor: pointer; margin-top: 30px; }
+  @media (min-width: 768px) { .main-content { padding: 50px; } .home-menu { grid-template-columns: repeat(3, 1fr); } .home-menu button { font-size: 38px; padding: 50px 30px; } #product-list { grid-template-columns: repeat(5, 1fr); } }
+  #map-view { width: 100%; height: 65vh; border: 3px solid #ccc; }
+  .emergency-btn { background-color: #D32F2F !important; color: white !important; border-color: #B71C1C !important; animation: pulse-red 2s infinite; }
+  @keyframes pulse-red { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.7); } 70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(211, 47, 47, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(211, 47, 47, 0); } }
+  .speech-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); color: white; display: flex; justify-content: center; align-items: center; font-size: 41px; text-align: center; z-index: 1000; opacity: 0; visibility: hidden; transition: 0.3s; }
+  .speech-overlay.visible { opacity: 1; visibility: visible; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="header-title" onclick="show('schedule')">VitaMind</div>
+    <div class="header-icons">
+      <button class="mic-button" id="micBtn" onclick="toggleMic()">🎤</button>
+      <button class="logout-button" onclick="logout()">로그아웃</button>
+    </div>
+  </header>
+  
+  <main>
+    
+    <section id="login">
+        <div class="auth-container">
+            <h1>VitaMind</h1>
+            <div class="form-container">
+                <input type="text" id="loginUserId" placeholder="아이디"><input type="password" id="loginUserPw" placeholder="비밀번호">
+                <button class="btn-primary" onclick="handleLogin()">로그인</button>
+                <div class="utility-buttons"><a onclick="show('signup')">회원가입</a></div>
+            </div>
+        </div>
+    </section>
+    <section id="signup">
+        <div class="auth-container">
+            <h1>회원가입</h1>
+            <div class="form-container">
+                <input type="text" id="signupName" placeholder="이름"><input type="text" id="signupDob" placeholder="생년월일" onfocus="(this.type='date')"><input type="text" id="signupUserId" placeholder="아이디"><input type="password" id="signupUserPw" placeholder="비밀번호"><input type="tel" id="signupPhone" placeholder="전화번호"><input type="text" id="signupAddress" placeholder="집 주소">
+                <button class="btn-primary" onclick="handleSignup()">가입하기</button>
+                <button class="btn-secondary" onclick="show('login')">로그인 화면으로</button>
+            </div>
+        </div>
+    </section>
+    <div class="main-content">
+        <section id="home">
+            <h2>🏠 어서오세요! 
+                VitaMind입니다.!! 👥</h2>
+            <div class="home-menu">
+                <button onclick="show('friends')">👥<br>친구</button><button onclick="show('market')">🛒<br>장보기</button><button onclick="show('map')">🗺️<br>지도</button><button onclick="show('schedule')">📅<br>우리들의 일정</button><button onclick="show('emergency')" class="emergency-btn">🚨<br>긴급 연락</button>
+            </div>
+        </section>
+        <section id="friends">
+            <div class="content-pane"><h2>👥 친구 목록</h2><div id="friends-list"></div></div>
+        </section>
+        <section id="chat">
+            <div class="content-pane">
+                <h2 id="chat-with-name"></h2><div id="chat-area"></div>
+                <div class="chat-input-container"><input type="text" id="chat-input" placeholder="메시지를 입력하거나 말씀하세요..."><button id="chat-send-btn" onclick="sendChatMessage()">전송</button></div>
+            </div>
+        </section>
+        <section id="market">
+             <div class="content-pane">
+                <h2>🛒 장보기</h2><div id="product-list"></div>
+                <div id="cart"><h3>🧺 장바구니 (<span id="cart-count">0</span>개)</h3><ul id="cart-items"></ul></div>
+                <button class="delivery-btn" onclick="requestDelivery()">배달하기</button>
+            </div>
+        </section>
+        <section id="delivery">
+             <div class="content-pane">
+                <h2>🛵 배달 설정</h2>
+                <div class="form-group"><label for="delivery-address">배달 주소</label><input type="text" id="delivery-address"></div>
+                <div class="form-group"><label for="delivery-time">희망 시간</label><select id="delivery-time"><option>오늘 오후 2시 ~ 4시</option><option>오늘 오후 4시 ~ 6시</option><option>내일 오전 10시 ~ 12시</option><option>내일 오후 2시 ~ 4시</option></select></div>
+                <button class="confirm-delivery-btn" onclick="confirmDelivery()">이 주소로 배달하기</button>
+            </div>
+        </section>
+        <section id="schedule">
+            <div class="content-pane">
+                <h2>📅 2025년 11월 시니어 클럽 일정</h2>
+                <div class="calendar-container">
+                    <div class="calendar-header"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div>
+                    <div id="calendar-grid" class="calendar-grid"></div>
+                </div>
+            </div>
+        </section>
+        <section id="map">
+            <div class="content-pane"><h2>🗺️ 내 주변 지도</h2><div id="map-view"></div></div>
+        </section>
+        <section id="emergency">
+            <div class="content-pane">
+                <h2>🚨 응급 상황</h2><p style="font-size:35px;">"도와줘", "119" 등을 말씀하세요.</p>
+                <button onclick="makeEmergencyCall('119')" class="emergency-btn" style="width:100%; padding: 30px; font-size: 40px; margin-top:20px;">📞 119 즉시 연결</button>
+                <button onclick="makeEmergencyCall('guardian')" style="width:100%; padding: 30px; font-size: 40px; margin-top:20px;">👨‍👩‍👧 보호자에게 연락</button>
+            </div>
+        </section>
+    </div>
+  </main>
+  <nav>
+    <button class="home-btn-bottom" onclick="show('home')">🏠 홈으로</button>
+  </nav>
+</div>
+<div class="speech-overlay" id="speechOverlay"><div id="speechText">듣고 있어요...</div></div>
+
+<script>
+  // ===== 데이터 =====
+  let loggedInUser = null; let friends = []; let marketProducts = []; const cart = [];
+  const scheduleDataNov2025 = {
+      '4': { event: '광양, 영광 시니어클럽 내방', details: '14:30 (6명)' }, '5': { event: '김제시니어클럽 내방', details: '10:00 (27명)' }, '6': { event: '담당자 워크샵', details: '취업알선형, 시니어인턴쉽' }, '8': { event: '담당자 워크샵', details: '장소: 제주' }, '11': { event: '인계면 문화탐방', details: '9:00~, 전북 고창' }, '12': { event: '유등면 문화탐방', details: '9:00~, 전북 고창' }, '13': { event: '팔덕면 문화탐방', details: '9:30~, 전북 고창' }, '14': { event: '적성면 문화탐방', details: '9:00~, 전북 고창' }, '15': { event: '복흥면 문화탐방', details: '9:30~ (120명), 전북 고창' }, '16': { event: '순창떡볶이페스타 부스', details: '9:00~, 순창군 민속마을' }, '17': { event: '순창떡볶이페스타 부스', details: '9:00~, 순창군 민속마을' }, '18': { event: '금과면 문화탐방', details: '9:00~, 전북 고창' }, '19': { event: '순창읍 문화탐방', details: '9:00~, 전북 고창' }, '20': { event: '순창읍 문화탐방', details: '9:00~, 전북 고창' }, '21': { event: '팔덕면 문화탐방', details: '9:00~, 전북 고창' }, '22': { event: '순창읍 문화탐방', details: '9:00~, 전북 고창' }, '27': { event: '선도모델 문화탐방', details: '9:00~, 전북 고창' }
+  };
+
+  // ===== 화면 전환 및 초기화 =====
+  function show(id) {
+    const header = document.querySelector('header'); const nav = document.querySelector('nav'); const mainContent = document.querySelector('.main-content');
+    document.querySelectorAll("main section").forEach(s => s.classList.remove("active"));
+    const section = document.getElementById(id); if(section) section.classList.add("active");
+    if (id === 'login' || id === 'signup') { header.style.display = 'none'; nav.style.display = 'none'; mainContent.style.display = 'none'; } else { header.style.display = 'flex'; nav.style.display = 'flex'; mainContent.style.display = 'block'; }
+    if (id === 'map') loadMap();
+  }
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelector('.header-title').onclick = () => show('schedule');
+    const loggedInUserData = localStorage.getItem('loggedInUser');
+    if (localStorage.getItem('isLoggedIn') === 'true' && loggedInUserData) {
+        loggedInUser = JSON.parse(loggedInUserData); initializeMainApp(); show('home');
+    } else { show('login'); }
+  });
+  function initializeMainApp() { renderSchedule(); generateRandomFriends(); renderFriends(); generateRandomProducts(); renderProducts(); renderCart(); }
+
+  // ===== 달력 생성 함수 =====
+  function renderSchedule() {
+      const calendarGrid = document.getElementById('calendar-grid'); calendarGrid.innerHTML = '';
+      const year = 2025; const month = 10;
+      const today = new Date();
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      for (let i = 0; i < firstDay; i++) { calendarGrid.innerHTML += '<div class="calendar-day empty"></div>'; }
+      for (let day = 1; day <= daysInMonth; day++) {
+          const dayDiv = document.createElement('div'); dayDiv.className = 'calendar-day';
+          let dayNumberHTML = `<div class="day-number">${day}</div>`;
+          if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) { dayDiv.classList.add('today'); }
+          if (scheduleDataNov2025[day]) {
+              const item = scheduleDataNov2025[day];
+              let detailsHTML = item.details ? `<span style="font-size: 26px; color: #555;"> - ${item.details}</span>` : '';
+              dayNumberHTML += `<div class="day-event">${item.event}${detailsHTML}</div>`;
+          }
+          dayDiv.innerHTML = dayNumberHTML; calendarGrid.appendChild(dayDiv);
+      }
+  }
+  
+  // (로그인, 회원가입, 로그아웃, 친구, 대화, 장보기, 지도, 긴급연락, 음성인식 등 모든 기존 JS 함수들은 여기에 그대로 유지됩니다)
+  function handleLogin() { const userId = document.getElementById('loginUserId').value; const userPw = document.getElementById('loginUserPw').value; if (!userId || !userPw) { alert('아이디와 비밀번호를 모두 입력해주세요.'); return; } const users = JSON.parse(localStorage.getItem('vitaMindUsers')) || []; const foundUser = users.find(user => user.id === userId && user.password === userPw); if (foundUser) { localStorage.setItem('isLoggedIn', 'true'); localStorage.setItem('loggedInUser', JSON.stringify(foundUser)); loggedInUser = foundUser; alert(`${loggedInUser.name}님, 환영합니다!`); initializeMainApp(); show('home'); } else { alert('아이디 또는 비밀번호가 일치하지 않습니다.'); } }
+  function handleSignup() { const newUser = { name: document.getElementById('signupName').value, dob: document.getElementById('signupDob').value, id: document.getElementById('signupUserId').value, password: document.getElementById('signupUserPw').value, phone: document.getElementById('signupPhone').value, address: document.getElementById('signupAddress').value }; if (Object.values(newUser).some(v => !v)) { alert('모든 정보를 입력해주세요.'); return; } let users = JSON.parse(localStorage.getItem('vitaMindUsers')) || []; if (users.some(user => user.id === newUser.id)) { alert('이미 사용 중인 아이디입니다.'); return; } users.push(newUser); localStorage.setItem('vitaMindUsers', JSON.stringify(users)); alert('회원가입이 완료되었습니다. 로그인 해주세요.'); show('login'); }
+  function logout() { if (confirm('로그아웃 하시겠습니까?')) { localStorage.removeItem('isLoggedIn'); localStorage.removeItem('loggedInUser'); loggedInUser = null; if(document.getElementById('loginUserId')) document.getElementById('loginUserId').value = ''; if(document.getElementById('loginUserPw')) document.getElementById('loginUserPw').value = ''; show('login'); } }
+  function renderFriends() { const list = document.getElementById("friends-list"); if(!list) return; list.innerHTML = ""; friends.forEach(f => { const div = document.createElement("div"); div.className = "friend-card"; div.innerHTML = `<div class="friend-info"><div class="friend-name">${f.name}</div><div style="font-size:33px;">관심분야: ${f.category}</div></div><button class="chat-btn" onclick="startChat('${f.name}')">대화하기</button>`; list.appendChild(div); }); }
+  function startChat(name) { document.getElementById('chat-with-name').textContent = `${name}님과의 대화`; document.getElementById('chat-area').innerHTML = ''; appendChatMessage(`${name}님과 대화를 시작합니다.`, 'system'); show('chat'); }
+  const chatInput = document.getElementById('chat-input'); if(chatInput) chatInput.addEventListener('keyup', (event) => { if (event.key === 'Enter') { sendChatMessage(); } });
+  function sendChatMessage() { const messageText = chatInput.value.trim(); if (messageText === '') return; appendChatMessage(messageText, 'user'); chatInput.value = ''; setTimeout(() => { const replies = ["그렇군요!", "네, 좋은 생각이에요.", "오늘 날씨가 참 좋네요."]; appendChatMessage(replies[Math.floor(Math.random() * replies.length)], 'friend'); }, 1000); }
+  function appendChatMessage(text, sender) { const chatArea = document.getElementById('chat-area'); if(!chatArea) return; const bubble = document.createElement('div'); bubble.className = `chat-bubble ${sender}-bubble`; bubble.textContent = text; chatArea.appendChild(풍선껌); chatArea.scrollTop = chatArea.scrollHeight; }
+  function requestDelivery() { if (cart.length === 0) { alert("장바구니가 비어있습니다."); return; } show('delivery'); document.getElementById('delivery-address').value = loggedInUser.address; }
+  function confirmDelivery() { const address = document.getElementById('delivery-address').value; const time = document.getElementById('delivery-time').value; if (!address) { alert('배달 주소를 입력해주세요.'); return; } alert(`✅ 배달 요청 완료\n\n- 주소: ${address}\n- 시간: ${time}\n\n설정한 시간대에 배달이 갑니다.`); cart.length = 0; renderCart(); show('home'); }
+  function generateRandomFriends(){const lastNames=["김","이","박","최","정","강","조","윤","장","임"],firstNames=["영자","순자","철수","영호","미숙","경희","민준","서연","도윤","하은"],interests=["운동","산책","요리","영화","음악","독서","등산","봉사","댄스","꽃 가꾸기"];friends=[];for(let i=0;i<10;i++)friends.push({name:lastNames[Math.floor(Math.random()*lastNames.length)]+firstNames[Math.floor(Math.random()*firstNames.length)],category:interests[Math.floor(Math.random()*interests.length)]})}
+  function generateRandomProducts(){const productNames=["배추","감자","사과","바나나","양파","당근","두부","계란","우유","고등어","오이","호박","돼지고기","소고기","닭고기","김치","라면","쌀","콩나물","파","딸기","토마토","미역","참기름","설탕","소금","된장","간장","고추장","커피"];marketProducts=productNames.map((name,i)=>({id:i+1,name,price:Math.floor(Math.random()*9000)+1000}))}
+  function renderProducts(){const list=document.getElementById("product-list"); if(!list) return; list.innerHTML="";marketProducts.forEach(p=>{const div=document.createElement("div");div.className="product-card";div.innerHTML=`<span>${p.name} - ${p.price.toLocaleString()}원</span><button onclick="addToCart(${p.id})">담기</button>`;list.appendChild(div)})}
+  function addToCart(id){const p=marketProducts.find(x=>x.id===id);if(!p)return;cart.push(p);renderCart();alert(`${p.name}을(를) 담았습니다.`)}
+  function renderCart(){const cartItems=document.getElementById("cart-items"); if(!cartItems) return; cartItems.innerHTML=cart.map(c=>`<li>${c.name} (${c.price.toLocaleString()}원)</li>`).join('');document.getElementById("cart-count").textContent=cart.length}
+  let map=null;function loadMap(){const mapContainer=document.getElementById('map-view');try{if(!map&&window.kakao&&kakao.maps){const options={center:new kakao.maps.LatLng(35.1601,126.8517),level:5};map=new kakao.maps.Map(mapContainer,options)}else if(map){map.relayout()}}catch(error){mapContainer.innerHTML="지도를 불러오는 데 실패했습니다. API 키를 확인해주세요.";console.error("Map loading error:",error)}}
+  function makeEmergencyCall(target){let number='',targetName='';if(target==='119'){number='119';targetName='119'}else if(target==='guardian'){number='010-1234-5678';targetName='보호자'}const isConfirmed=confirm(`🚨 ${targetName}에게 바로 전화를 연결할까요?\n\n전화 앱으로 이동한 후 통화 버튼을 눌러주세요.`);if(isConfirmed){window.location.href=`tel:${number}`}}
+  const micBtn=document.getElementById("micBtn");const overlay=document.getElementById("speechOverlay");const speechText=document.getElementById("speechText");let recognition;if("webkitSpeechRecognition"in window){recognition=new webkitSpeechRecognition();recognition.lang="ko-KR";recognition.onstart=()=>{micBtn.classList.add("active");overlay.classList.add("visible");speechText.textContent="듣고 있어요..."};recognition.onend=()=>{micBtn.classList.remove("active");setTimeout(()=>overlay.classList.remove("visible"),1000)};recognition.onresult=e=>{const text=e.results[0][0].transcript.trim();speechText.textContent=`"${text}"`;handleVoiceCommand(text)}}
+  function toggleMic(){if(recognition)recognition.start()}
+  function handleVoiceCommand(text) { text = text.toLowerCase(); const isChatActive = document.getElementById('chat').classList.contains('active'); const isDeliveryActive = document.getElementById('delivery').classList.contains('active'); if (text.includes("도와줘") || text.includes("119")) { makeEmergencyCall('119'); return; } if (text.includes("보호자")) { makeEmergencyCall('guardian'); return; } if (isChatActive && !["홈","친구","시장","지도","긴급","배달", "일정"].some(cmd => text.includes(cmd))) { appendChatMessage(text, 'user'); setTimeout(() => { appendChatMessage("음성으로 말씀하셨네요! 잘 들려요.", 'friend'); }, 1000); return; } if (isDeliveryActive && (text.includes("배달 확인") || text.includes("결정") || text.includes("이 주소로"))) { confirmDelivery(); return; } if (text.includes("홈")) show("home"); else if (text.includes("친구")) show("friends"); else if (text.includes("시장") || text.includes("장보기")) show("market"); else if (text.includes("지도")) show("map"); else if (text.includes("일정") || text.includes("스케줄")) show("schedule"); else if (text.includes("긴급")) show("emergency"); else if (text.includes("배달")) requestDelivery(); else if (text.includes("로그아웃")) logout(); else { const friend = friends.find(f => text.includes(f.name.toLowerCase())); if (friend && text.includes("대화")) { startChat(friend.name); return; } const product = marketProducts.find(p => text.includes(p.name)); if (product && text.includes("담아")) { show('market'); addToCart(product.id); return; } speechText.textContent = "명령을 이해하지 못했어요."; } }
+</script>
+<script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=433a059560072e066820d8b58d1e68f7"></script>
+
+
+</body>
+</html>

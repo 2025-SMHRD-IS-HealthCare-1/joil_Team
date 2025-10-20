@@ -4,7 +4,7 @@ const db = require('../config/db');
 
 // 회원가입
 router.post('/register', (req, res) => {
-    const { id, pw, nick, latitude, longitude } = req.body;     // 변수 3개에 각각 값을 할당
+    let { name, age, id, pw, phone, latitude, longitude } = req.body;     // 변수 3개에 각각 값을 할당
 
     /*  DB에 데이터를 추가
         db연결정보를 통해서 body데이터를 db에 추가
@@ -16,9 +16,9 @@ router.post('/register', (req, res) => {
     */
 
     // ? : sql 인젝션 때문에 ?를 써서 무언가 들어갈거라고 알려주는거
-    const sql = "INSERT INTO TB_MEMBER (id, pw, nick, latitude, longitude) VALUES (?, ?, ?, ?, ?)";
+    const sql = "INSERT INTO TB_MEMBER (name, age, id, pw, phone) VALUES (?, ?, ?, ?, ?)";
     // [? ? ?] : 변수 
-    const params = [id, pw, nick, latitude, longitude];
+    const params = [name, age, id, pw, phone];
 
     db.execute(sql, params, (err, result) => {
         if (err) {
@@ -53,7 +53,7 @@ router.post("/login", (req, res) => {
       // ✅ 세션에 로그인 정보 저장
       req.session.user = {
         id: rows[0].id,
-        nick: rows[0].nick
+        name: rows[0].name
       };
 
       // ✅ 사용자 ID를 쿠키에 저장 (프론트에서 사용 가능하도록)
@@ -69,6 +69,27 @@ router.post("/login", (req, res) => {
     }
   });
 });
+
+// ✅ 로그아웃 API 추가
+router.post('/logout', (req, res) => {
+    if (req.session.user) {
+        // 세션 파괴 (로그아웃 처리)
+        req.session.destroy(err => {
+            if (err) {
+                console.error("세션 파괴 오류:", err);
+                return res.status(500).send({ success: false, message: "로그아웃 중 서버 오류" });
+            }
+            // 쿠키 삭제 (선택적이지만 클린업을 위해 권장)
+            res.clearCookie("userId"); 
+            console.log("✅ 로그아웃 성공");
+            res.send({ success: true });
+        });
+    } else {
+        // 이미 로그아웃 상태
+        res.send({ success: true, message: "이미 로그아웃되었습니다." });
+    }
+});
+
 
 // 실습 문제
 // 회원정보 수정
@@ -139,7 +160,7 @@ router.post('/updateLocation', (req, res) => {
 });
 
 
-// ✅ 반경 5km 내 사용자 조회 (Haversine formula)
+// ✅ 반경 10km 내 사용자 조회 (Haversine formula)
 router.post('/nearby', (req, res) => {
   if (!req.session.user) {
     return res.status(401).send({ success: false, message: "로그인 필요" });
@@ -168,7 +189,7 @@ router.post('/nearby', (req, res) => {
   const userId = req.session.user.id;
 
   const sql = `
-    SELECT id, nick, latitude, longitude,
+    SELECT id, name, latitude, longitude,
       (6371 * ACOS(
          COS(RADIANS(?)) * COS(RADIANS(latitude)) * COS(RADIANS(longitude) - RADIANS(?))
          + SIN(RADIANS(?)) * SIN(RADIANS(latitude))
@@ -181,7 +202,7 @@ router.post('/nearby', (req, res) => {
     ORDER BY distance ASC;
   `;
 
-  const radius = 100;  // km
+  const radius = 10;  // km
   const params = [latitude, longitude, latitude, userId, radius];
 
   db.execute(sql, params, (err, rows) => {
