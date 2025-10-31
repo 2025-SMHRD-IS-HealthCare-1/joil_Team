@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title><%= title || 'VitaMind' %></title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="header">
+    <a class="brand" href="/">VitaMind</a>
+    <nav class="nav">
+      <% if (user) { %>
+        <% if (user.admin_yn === 'Y') { %>
+          <a href="/admin">관리자</a>
+        <% } else { %>
+          <a href="/me">내 대시보드</a>
+        <% } %>
+        <a href="/logout">로그아웃</a>
+      <% } else { %>
+        <a href="/login">로그인</a>
+      <% } %>
+    </nav>
+  </header>
+
+  <main class="container">
+    <%- body %>
+  </main>
+</body>
+</html>

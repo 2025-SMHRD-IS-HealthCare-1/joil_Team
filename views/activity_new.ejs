@@ -1,0 +1,17 @@
+<section class="card" style="max-width:520px;margin:0 auto">
+  <h2>활동 기록 추가</h2>
+  <form method="post" action="/activities">
+    <label>활동 유형</label>
+    <select name="act_type" required>
+      <option value="WALK">산책</option>
+      <option value="SHOP">장보기</option>
+      <option value="VISIT">방문</option>
+    </select>
+    <label>진행 여부</label>
+    <select name="act_yn">
+      <option value="Y">완료</option>
+      <option value="N">미완료</option>
+    </select>
+    <button>저장</button>
+  </form>
+</section>

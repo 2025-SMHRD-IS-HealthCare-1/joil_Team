@@ -1,0 +1,219 @@
+// server.js
+const fs = require('fs');                       // 파일/인증서
+const https = require('https');                 // HTTPS 서버
+const express = require('express');             // express 본체
+const path = require('path');                   // 경로
+const cookieParser = require('cookie-parser');  // 쿠키
+const session = require('express-session');     // 세션
+const os = require('os');                       // LAN IP 조회
+const { createProxyMiddleware, responseInterceptor } = require('http-proxy-middleware'); // 프록시
+// Node 18 미만 호환용
+const fetch = global.fetch || ((...a) => import('node-fetch').then(({ default: f }) => f(...a)));
+// 앱
+const app = express();
+
+// ===== 로컬 IPv4 (로그용) =====
+function getLocalIPv4() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) return iface.address;
+    }
+  }
+  return 'localhost';
+}
+const localIP = getLocalIPv4();
+
+// ===== HTTPS 인증서 (없으면 HTTP로 폴백) =====
+let httpsOptions = null;
+try {
+  const keyPath  = path.join(__dirname, 'key.pem');
+  const certPath = path.join(__dirname, 'cert.pem');
+  if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+    httpsOptions = {
+      key:  fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath),
+    };
+    console.log('🔐 HTTPS cert loaded');
+  } else {
+    console.warn('⚠ key.pem / cert.pem not found -> HTTP fallback');
+  }
+} catch (e) {
+  console.warn('⚠ cert load failed -> HTTP fallback:', e && e.message);
+}
+
+// ===== 공통 미들웨어 =====
+app.use(cookieParser());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
+// 정적: 기존 /public 루트 + /static 별칭 제공 (views에서 /static/* 로 참조)
+const staticOpts = { maxAge: '1h', etag: true, immutable: true };
+app.use(express.static(path.join(__dirname, 'public'), staticOpts));
+app.use('/static', express.static(path.join(__dirname, 'public'), staticOpts));
+
+// ===== 세션 (HTTP/HTTPS 모두 동작하도록) =====
+app.set('trust proxy', 1);
+const isProdLike = !!httpsOptions; // 인증서 있으면 HTTPS로 띄운다고 가정
+app.use(session({
+  secret: 'vitamind_secret_key',
+  resave: false,
+  saveUninitialized: true,
+  cookie: {
+    httpOnly: true,
+    maxAge: 1000 * 60 * 60,
+    secure: isProdLike,          // HTTPS일 때만 secure
+    sameSite: isProdLike ? 'none' : 'lax', // HTTP일 때는 lax
+  }
+}));
+
+// ===== 뷰 엔진 (서버2: EJS) =====
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
+
+app.get('/admin', (req, res) => {
+  const user = req.session.user || { id: 'guest', name: 'Guest', admin_yn: 'Y' };
+  return res.render('admin', { user });
+});
+
+// ===== 라우터/미들웨어 로드 =====
+const pageRouter = require('./routes/pageRouter'); // 서버1
+const dbRouter = require('./routes/dbRouter');     // 서버1
+
+// 서버2 라우터들
+const adminRouter = require('./routes/admin');
+const apiRouter = require('./routes/api');
+const dashboardRouter = require('./routes/dashboard');
+
+const { redirectAdminFromMe } = require('./middlewares/guards');
+
+// ===== 시뮬레이터(서버1 유지) =====
+try {
+  const sim = require('./sim_monitor');
+  const simAlertRouter = require('./routes/simAlertRouter');
+  app.use('/sim', simAlertRouter);
+  sim.start();
+} catch (e) {
+  console.warn('[sim] skip:', e && e.message);
+}
+
+// ===== 프록시(서버1 유지) =====
+// 서버2 프록시 예: /s2 → 3002 (필요시 유지/정리)
+app.use('/s2', createProxyMiddleware({
+  target: 'http://localhost:3002',
+  changeOrigin: true,
+  pathRewrite: { '^/s2': '' },
+  xfwd: true,
+  logLevel: 'warn'
+}));
+
+function proxyErrorHandler(err, req, res) {
+  // 프록시 실패 시 빈 응답 대신 JSON으로
+  if (!res.headersSent) {
+    res.status(502).json({ ok:false, message:'rasp proxy failed', detail: String(err && err.message || err) });
+  } else {
+    res.end();
+  }
+}
+app.use((req, _res, next) => {
+  if (req.url.startsWith('rapi/')) req.url = '/' + req.url;
+  next();
+});
+app.get('/rapi/health', async (req, res) => {
+  try {
+    // node 18+ 는 fetch 내장. 이하 버전이면 node-fetch 설치 필요.
+    const r = await fetch(`${RASP_BASE.replace(/\/+$/, '')}/health`);
+    const text = await r.text();
+    res.set('content-type', r.headers.get('content-type') || 'application/json; charset=utf-8');
+    res.status(r.status).send(text);
+  } catch (e) {
+    res.status(502).json({ ok: false, message: 'rasp health unreachable', detail: String((e && e.message) || e) });
+  }
+});
+
+// 라파 FastAPI 프록시 + 가벼운 캐시
+const RASP_BASE = process.env.RASP_BASE || 'http://192.168.219.216:8000';
+
+// 간단 캐시(Map). key: req.path (ex: /rapi/sensor), value: { ts, body, status, headers }
+const raspCache = new Map();
+const CACHE_TTL_MS = 8000;
+const CACHEABLE = new Set(['/sensor', '/dht', '/gps']); // STT는 캐시 금지
+
+app.use('/rapi', createProxyMiddleware({
+  target: RASP_BASE,
+  changeOrigin: true,
+  pathRewrite: { '^/rapi': '' },
+  xfwd: true,
+  ws: false,
+  timeout: 20000,
+  proxyTimeout: 20000,
+  onError: proxyErrorHandler,
+preserveHeaderKeyCase: true,
+  logLevel: 'warn',
+  selfHandleResponse: true, // 응답 가로채서 캐시
+  onProxyReq(proxyReq, req, res) {
+    // 캐시 히트면 원격으로 안 보냄 (바로 반환)
+    const url = new URL(req.url, 'http://x'); // /sensor 같은 path
+    if (req.method === 'GET' && CACHEABLE.has(url.pathname)) {
+      const hit = raspCache.get(url.pathname);
+      if (hit && (Date.now() - hit.ts) < CACHE_TTL_MS) {
+        res.statusCode = hit.status;
+        // 최소한의 헤더만 복원
+        res.setHeader('content-type', hit.headers['content-type'] || 'application/json; charset=utf-8');
+        res.setHeader('x-rasp-cache', 'HIT');
+        return res.end(hit.body);
+      }
+    }
+    // 미스 → 프록시 요청 진행
+  },
+  onProxyRes: responseInterceptor(async (buffer, proxyRes, req, res) => {
+    const url = new URL(req.url, 'http://x');
+    // 캐시 가능한 엔드포인트만 저장
+    if (req.method === 'GET' && CACHEABLE.has(url.pathname) && proxyRes.statusCode === 200) {
+      raspCache.set(url.pathname, {
+        ts: Date.now(),
+        body: buffer,
+        status: proxyRes.statusCode,
+        headers: { 'content-type': proxyRes.headers['content-type'] }
+      });
+      res.setHeader('x-rasp-cache', 'MISS');
+    }
+    return buffer; // 원본 그대로 반환
+  })
+}));
+
+
+// 서버2 대시보드 프록시 (필요시 유지)
+app.use('/dashboard', createProxyMiddleware({
+  target: 'http://localhost:3001',
+  changeOrigin: true,
+  pathRewrite: { '^/dashboard': '/' }
+}));
+
+// ===== 라우팅 순서 (중요) =====
+// 1) 서버2: 인증/화면 먼저 => /login, /signup, /logout 등 EJS 렌더 우선
+app.use('/api', apiRouter);
+app.use('/admin', adminRouter);
+app.use('/', redirectAdminFromMe, dashboardRouter);
+
+// 3) 서버1: 기존 DB/API & 페이지 라우터 (뒤쪽에)
+//   - pageRouter에 /login 정적 라우트가 있어서, 위에서 EJS /login이 먼저 먹도록 순서 배치
+app.use('/db', dbRouter);
+app.use('/', pageRouter);
+
+// ===== 서버 실행 (HTTPS 있으면 3000/HTTPS, 없으면 3000/HTTP) =====
+const PORT = process.env.PORT || 3000;
+if (httpsOptions) {
+  https.createServer(httpsOptions, app).listen(PORT, '0.0.0.0', () => {
+    console.log('✅ VitaMind HTTPS server');
+    console.log(`- local: https://localhost:${PORT}`);
+    console.log(`- lan  : https://${localIP}:${PORT}`);
+    console.log('  if browser warns, continue anyway.');
+  });
+} else {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log('✅ VitaMind HTTP server (fallback)');
+    console.log(`- local:  http://localhost:${PORT}`);
+    console.log(`- lan  :  http://${localIP}:${PORT}`);
+  });
+}

@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <!-- fonts & common -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>시니어 일정 공유</title>
+
+  <!-- tailwind (ui 빠르게) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- firebase sdk -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    /* 페이지 기본 */
+    body { background:#f4f6fb; font-family: system-ui, -apple-system, "Noto Sans KR", sans-serif; }
+    .card { background:#fff; border-radius:1.25rem; box-shadow:0 8px 24px rgba(0,0,0,.08); }
+    .btn { font-weight:800; font-size:1.25rem; padding:1rem 1.25rem; border-radius:.9rem; }
+    /* 달력 셀 */
+    .cal-cell { min-height:88px; border:1px solid #e5e7eb; border-radius:.75rem; padding:.5rem; }
+    .cal-today { background:#dcfce7; }        /* 오늘 배경 */
+    .event-line { font-size:.95rem; margin-top:.35rem; }
+    .event-past { opacity:.6; }               /* 지난 일정 흐리게 */
+    .alert-chip { border:2px solid #ff9800; color:#ff9800; padding:.15rem .45rem; border-radius:.5rem; font-size:.8rem; }
+  </style>
+
+  <script>
+    /* 1) firebase 연결 */
+    const firebaseConfig = {
+      apiKey: "AIzaSyCRcveuTZCzVS9wSfBU4j0oUtayypqmVF8",
+      authDomain: "vitamind-senior.firebaseapp.com",
+      projectId: "vitamind-senior",
+      storageBucket: "vitamind-senior.firebasestorage.app",
+      messagingSenderId: "1051160585043",
+      appId: "1:1051160585043:web:676e5f3087addf4972b7a6",
+      measurementId: "G-RB8Q4GWLPS"
+    };
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    /* 2) 알림 권한 준비 (최초 1회 요청) */
+    document.addEventListener("DOMContentLoaded", async () => {
+      try {
+        if (window.Notification && Notification.permission === "default") {
+          await Notification.requestPermission();
+        }
+      } catch (_) {}
+    });
+  </script>
+</head>
+
+<body class="min-h-screen p-4">
+
+  <!-- 상단 공통: 프로젝트로 돌아가기 -->
+  <button
+  id="topBackBtn"
+  onclick="window.location.href='project.html#schedule'"
+  class="btn bg-gray-700 text-white fixed top-4 left-4 shadow hover:bg-gray-800">
+  ← 뒤로가기
+</button>
+
+  <!-- =========================
+       메인 메뉴 (일정 추가/목록/달력 진입)
+       ========================= -->
+  <section id="mainMenu" class="card max-w-3xl mx-auto mt-20 p-10 text-center space-y-8">
+    <h1 class="text-5xl font-black text-indigo-800 drop-shadow">👴 시니어 일정 공유</h1>
+
+    <div class="space-y-5">
+      <button id="goAddEvent" class="btn w-full bg-blue-500 text-white hover:bg-blue-600">➕ 일정 추가</button>
+      <button id="goViewList" class="btn w-full bg-green-500 text-white hover:bg-green-600">📋 내 일정 보기</button>
+      <button id="goCalendar" class="btn w-full bg-indigo-600 text-white hover:bg-indigo-700">📅 우리들의 일정으로</button>
+    </div>
+  </section>
+
+  <!-- =========================
+       일정 추가 페이지
+       ========================= -->
+  <section id="addEventPage" class="card max-w-2xl mx-auto mt-10 p-8 space-y-4 hidden">
+    <h2 class="text-3xl font-extrabold text-[#00796B] text-center">🗓️ 새 일정 등록</h2>
+
+    <label class="font-semibold">📅 날짜</label>
+    <input id="eventDate" type="date" class="w-full border-2 border-gray-300 rounded-xl p-4 text-xl">
+
+    <label class="font-semibold">⏰ 시간</label>
+    <input id="eventTime" type="time" class="w-full border-2 border-gray-300 rounded-xl p-4 text-xl">
+
+    <label class="font-semibold">📌 제목</label>
+    <input id="eventTitle" type="text" placeholder="예: 병원 진료" class="w-full border-2 border-gray-300 rounded-xl p-4 text-xl">
+
+    <label class="font-semibold">📝 세부내용</label>
+    <textarea id="eventDetails" placeholder="세부사항 입력…" class="w-full border-2 border-gray-300 rounded-xl p-4 text-xl h-32 resize-none"></textarea>
+
+    <label class="font-semibold">🔔 알림 시간(분 전)</label>
+    <select id="alertBefore" class="w-full border-2 border-gray-300 rounded-xl p-4 text-xl">
+      <option value="5">5</option>
+      <option value="10" selected>10</option>
+      <option value="30">30</option>
+      <option value="60">60</option>
+    </select>
+
+    <div class="flex flex-col gap-3 pt-3">
+      <button id="addEventBtn" class="btn bg-[#00796B] text-white hover:bg-[#00695C]">✅ 일정 등록</button>
+      <button id="backToMain1" class="btn bg-gray-500 text-white hover:bg-gray-600">🔙 뒤로가기</button>
+    </div>
+
+    <div id="messageBox" class="text-center font-bold text-xl mt-1"></div>
+  </section>
+
+  <!-- =========================
+       일정 목록 페이지
+       ========================= -->
+  <section id="eventListPage" class="card max-w-xl mx-auto mt-10 p-8 hidden">
+    <h2 class="text-2xl font-bold text-indigo-700 text-center mb-3">📋 내 일정 목록</h2>
+    <div id="eventListContainer" class="space-y-3">(등록된 일정이 없습니다)</div>
+    <button id="backToMain2" class="btn w-full bg-gray-500 text-white hover:bg-gray-600 mt-5">🔙 뒤로가기</button>
+  </section>
+
+  <!-- =========================
+       달력 섹션 (항상 1개만 존재)
+       ========================= -->
+  <section id="calendarSection" class="card max-w-5xl mx-auto mt-10 p-6">
+    <h2 class="text-3xl font-extrabold text-indigo-700 mb-4 text-center">📅 우리들의 일정</h2>
+
+    <!-- month header -->
+    <div class="flex items-center justify-between mb-3">
+      <button id="prevMonth" class="btn bg-gray-200 hover:bg-gray-300 text-gray-800">◀ 이전 달</button>
+      <h3 id="monthTitle" class="text-2xl font-black text-indigo-800"></h3>
+      <button id="nextMonth" class="btn bg-gray-200 hover:bg-gray-300 text-gray-800">다음 달 ▶</button>
+    </div>
+
+    <!-- week header -->
+    <div class="grid grid-cols-7 gap-1 font-bold text-gray-700 text-center mb-1">
+      <div class="text-red-600">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div class="text-blue-600">토</div>
+    </div>
+
+    <!-- days grid (여기로만 렌더) -->
+    <div id="calendarContainer" class="grid grid-cols-7 gap-1 text-sm"></div>
+
+    <button id="backToMain3" class="btn w-full bg-gray-600 text-white hover:bg-gray-700 mt-6">🔙 홈으로</button>
+  </section>
+
+  <script>
+    /* ===== 전역 (상태) ===== */
+    let currentUser = localStorage.getItem("currentUserName") || "게스트"; // 작성자 표시용
+    let calendarUnsub = null;        // firestore 구독 핸들
+    let calendarInited = false;      // 달력 1회 초기화 플래그
+
+    /* ===== 공통 show/hide ===== */
+    function showSection(id) {
+      document.querySelectorAll("section").forEach(s => s.classList.add("hidden"));
+      document.getElementById(id)?.classList.remove("hidden");
+    }
+
+    /* ===== 메인 메뉴 버튼 바인딩 ===== */
+    document.getElementById("goAddEvent").onclick = () => {
+      showSection("addEventPage");
+    };
+
+    document.getElementById("goViewList").onclick = async () => {
+      showSection("eventListPage");
+      await loadEventList();
+    };
+
+    document.getElementById("goCalendar").onclick = () => {
+      openCalendarOnce();            // 1회만 초기화
+      showSection("calendarSection");
+    };
+
+    document.getElementById("backToMain1").onclick =
+    document.getElementById("backToMain2").onclick =
+    document.getElementById("backToMain3").onclick = () => {
+      // 달력 페이지에서 나갈 때 실시간 리스너 해제
+      if (calendarUnsub) { calendarUnsub(); calendarUnsub = null; }
+      showSection("mainMenu");
+    };
+
+    /* ===== 일정 등록 ===== */
+    document.getElementById("addEventBtn").onclick = async () => {
+      const title   = document.getElementById("eventTitle").value.trim();
+      const date    = document.getElementById("eventDate").value;
+      const time    = document.getElementById("eventTime").value;
+      const details = document.getElementById("eventDetails").value.trim();
+      const alertBefore = parseInt(document.getElementById("alertBefore").value || "10", 10);
+
+      const msg = document.getElementById("messageBox");
+
+      // 필수값 체크
+      if (!title || !date || !time) {
+        msg.textContent = "⚠️ 제목/날짜/시간을 모두 입력해줘.";
+        msg.className = "text-red-600 font-bold text-center";
+        return;
+      }
+
+      // firestore 저장
+      await db.collection("events").add({
+        owner: currentUser,
+        title, date, time, details,
+        created_at: new Date()
+      });
+
+      // 로컬 알림 기본 설정 저장(선택)
+      localStorage.setItem("alertBefore", String(alertBefore));
+
+      msg.textContent = "✅ 일정 저장 완료!";
+      msg.className = "text-green-700 font-bold text-center";
+
+      // 입력 초기화
+      document.getElementById("eventTitle").value = "";
+      document.getElementById("eventDate").value = "";
+      document.getElementById("eventTime").value = "";
+      document.getElementById("eventDetails").value = "";
+
+      // 바로 달력 보기로 이동
+      setTimeout(() => {
+        openCalendarOnce();
+        showSection("calendarSection");
+      }, 600);
+    };
+
+    /* ===== 일정 목록 ===== */
+    async function loadEventList() {
+      const now = new Date();
+      const snap = await db.collection("events").orderBy("date", "asc").get();
+      const box = document.getElementById("eventListContainer");
+      let html = "";
+
+      snap.forEach(doc => {
+        const e = doc.data();
+        const when = new Date(`${e.date}T${e.time || "00:00"}`);
+        const past = when < now;
+        html += `
+          <div class="border-b pb-2 ${past ? 'opacity-60' : ''}">
+            <strong>${e.title}</strong> <span class="text-gray-600">(${e.date} ${e.time || ""})</span><br/>
+            <span class="text-gray-500">${e.details || "(세부 내용 없음)"}${past ? " • 지난 일정" : ""}</span>
+            <div class="text-xs text-gray-400 mt-1">작성자: ${e.owner || "알수없음"}</div>
+          </div>
+        `;
+      });
+
+      box.innerHTML = html || "(등록된 일정이 없습니다)";
+    }
+
+    /* =========================
+       달력: 1회만 초기화 + 월별 실시간 구독
+       ========================= */
+    function openCalendarOnce() {
+      if (calendarInited) return;            // 이미 초기화면 패스
+      calendarInited = true;                 // 최초 1회만 통과
+
+      // 내부 상태
+      const z2 = n => String(n).padStart(2, "0");
+      let view = new Date();                 // 현재 보이는 달
+      let y = view.getFullYear();
+      let m = view.getMonth();               // 0~11
+      let monthMap = {};                     // { day: [event, ...] }
+
+      // dom
+      const monthTitle = document.getElementById("monthTitle");
+      const grid = document.getElementById("calendarContainer");
+
+      // 화면 그리기
+      function draw() {
+        // 제목
+        monthTitle.textContent = `${y}년 ${m + 1}월`;
+
+        // grid 초기화
+        grid.innerHTML = "";
+
+        // 첫 요일/마지막 날짜 계산
+        const firstDow = new Date(y, m, 1).getDay();
+        const lastDate = new Date(y, m + 1, 0).getDate();
+
+        // 빈칸 채우기
+        for (let i = 0; i < firstDow; i++) grid.appendChild(emptyCell());
+
+        // 오늘 표시 기준
+        const today = new Date();
+
+        // 날짜 채우기
+        for (let d = 1; d <= lastDate; d++) {
+          const cell = document.createElement("div");
+          cell.className = "cal-cell";
+
+          // 오늘 배경
+          if (
+            d === today.getDate() &&
+            m === today.getMonth() &&
+            y === today.getFullYear()
+          ) cell.classList.add("cal-today");
+
+          // 날짜 헤더
+          const head = document.createElement("div");
+          head.className = "font-bold mb-1";
+          head.textContent = String(d);
+          cell.appendChild(head);
+
+          // 이벤트 라인
+          (monthMap[d] || []).forEach(ev => {
+            const when = new Date(`${ev.date}T${ev.time || "00:00"}`);
+            const past = when < today;
+
+            const line = document.createElement("div");
+            line.className = "event-line";
+            if (past) line.classList.add("event-past");
+
+            line.innerHTML = `
+              <span>${ev.title}${ev.details ? " - " + ev.details : ""}${past ? " • 지난 일정" : ""}</span>
+              <button class="alert-chip ml-2"
+               onclick="return addAlert('${escapeQuote(ev.title)}','${ev.date}','${ev.time || ""}')">🔔</button>
+            `;
+            cell.appendChild(line);
+          });
+
+          grid.appendChild(cell);
+        }
+      }
+
+      // 빈칸 셀
+      function emptyCell() {
+        const d = document.createElement("div");
+        d.className = "cal-cell";
+        d.style.background = "#f9fafb";
+        return d;
+      }
+
+      // 월 리스너(중복 방지)
+      function attachListener() {
+        // 이전 구독 해제
+        if (calendarUnsub) { calendarUnsub(); calendarUnsub = null; }
+
+        const yyyy = String(y);
+        const mm = z2(m + 1);
+        const last = z2(new Date(y, m + 1, 0).getDate());
+        const start = `${yyyy}-${mm}-01`;
+        const end   = `${yyyy}-${mm}-${last}`;
+
+        // 해당 월 범위만 실시간 구독
+        calendarUnsub = db.collection("events")
+          .where("date", ">=", start)
+          .where("date", "<=", end)
+          .orderBy("date", "asc")
+          .onSnapshot(snap => {
+            monthMap = {};
+            snap.forEach(doc => {
+              const e = { id: doc.id, ...doc.data() };
+              const d = parseInt(e.date.slice(8, 10), 10);
+              (monthMap[d] ||= []).push(e);
+            });
+            draw();
+          });
+      }
+
+      // 이전/다음 달
+      document.getElementById("prevMonth").onclick = () => {
+        m--; if (m < 0) { m = 11; y--; }
+        attachListener();
+      };
+      document.getElementById("nextMonth").onclick = () => {
+        m++; if (m > 11) { m = 0; y++; }
+        attachListener();
+      };
+
+      // 최초 구독
+      attachListener();
+
+      // 브라우저 알림 리스너 시작
+      startEventAlertListener();
+    }
+
+    /* =========================
+       브라우저 알림 (가까운 일정)
+       ========================= */
+    function startEventAlertListener() {
+      if (!window.Notification) return;             // 미지원 브라우저
+      const alertBefore = parseInt(localStorage.getItem("alertBefore") || "10", 10);
+
+      db.collection("events").onSnapshot(snapshot => {
+        const now = new Date();
+        const future = new Date(now.getTime() + alertBefore * 60000);
+
+        snapshot.forEach(doc => {
+          const e = doc.data();
+          if (!e.date || !e.time) return;
+
+          const when = new Date(`${e.date}T${e.time}`);
+          if (when > now && when <= future) {
+            const key = `notified_${doc.id}`;
+            if (localStorage.getItem(key)) return;
+
+            localStorage.setItem(key, "true");
+
+            // 브라우저 알림
+            if (Notification.permission === "granted") {
+              new Notification("일정 알림", {
+                body: `${e.title} (${e.time}) • ${alertBefore}분 전`,
+              });
+            }
+            // 추가로 alert 팝업도 (보조)
+            alert(`🔔 '${e.title}' 일정이 곧 시작돼! (${e.time}, ${alertBefore}분 전)`);
+          }
+        });
+      });
+    }
+
+    /* 알림 버튼에서 사용할 util */
+    function addAlert(title, date, time) {
+    // 안전 실행 (렌더 도중 오류 방지)
+    try {
+      // 🔹 부모창(project.html)에도 전달
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(
+          { type: "ADD_ALERT", title, date, time: time || "" },
+          "*" // 같은 도메인이면 location.origin으로 바꿔도 OK
+        );
+      }
+    } catch (e) {
+      console.warn("postMessage 실패:", e);
+    }
+
+    // 🔹 기존 안내 alert (유지)
+    const before = parseInt(localStorage.getItem("alertBefore") || "10", 10);
+    alert(`'${title}' 알림을 설정했어. 시작 ${before}분 전에 알려줄게!`);
+
+    // 🔹 반환값 false (렌더 중단 방지)
+    return false;
+  }
+
+  // 안전용 escapeQuote 유틸 유지
+  function escapeQuote(s) {
+    return String(s).replace(/'/g, "\\'");
+  }
+
+  // (참고) onclick="return addAlert(...)" 형태면 위 return false가 제대로 먹어.
+  // 만약 버튼이 <button type="submit">라면 form submit 방지로 아래 패턴을 써:
+  // onclick="event.preventDefault(); return addAlert(...);"
+
+  // ✅ 특정 섹션에 따라 상단 뒤로가기 버튼 표시 제어
+function updateTopBackBtnVisibility(sectionId) {
+  const topBack = document.getElementById("topBackBtn");
+  if (!topBack) return;
+  // 우리들의 일정 화면(calendarSection)일 땐 숨기기
+  if (sectionId === "calendarSection") topBack.style.display = "none";
+  else topBack.style.display = "block";
+}
+
+// 기존 showSection 함수 아래쪽에 이 코드 추가
+const _origShowSection = showSection;
+showSection = function(id) {
+  _origShowSection(id);
+  updateTopBackBtnVisibility(id);
+};
+
+// 초기 로드 시 메인화면이면 버튼 보이게
+document.addEventListener("DOMContentLoaded", () => {
+  updateTopBackBtnVisibility("mainMenu");
+});
+  </script>
+</body>
+</html>

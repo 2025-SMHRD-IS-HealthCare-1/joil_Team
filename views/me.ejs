@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+  <div class="wrap">
+    <div class="page-head">
+      <div class="brand"><a href="/">VitaMind</a></div>
+      <div class="nav">
+        <a href="/admin">관리자</a>
+        <a href="/logout">로그아웃</a>
+      </div>
+    </div>
+
+    <h2>내 대시보드</h2>
+    <p><strong><%= user.name %></strong> (<%= user.id %>) 님,
+      권한: <%= user.admin_yn === 'Y' ? '관리자' : '회원' %></p>
+
+    <div class="panel">여기에 개인 KPI/기록을 붙이면 됩니다.</div>
+  </div>
+</body>
+</html>

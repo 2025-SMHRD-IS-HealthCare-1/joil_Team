@@ -1,0 +1,1840 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/raspi.css">
+<script defer src="/raspi.js"></script>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>VitaMind - 시니어 헬스케어</title>
+<style>
+  body, html {
+    margin: 0;
+    padding: 0;
+    background-color: #F8F9FA;
+    font-family: "Noto Sans KR", sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+  }
+  .app {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: #fff;
+  }
+
+  header {
+    background-color: #00796B;
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 30px;
+    font-size: 40px;
+    font-weight: 900;
+  }
+  #alarm-icon { cursor: pointer; }
+  .header-title { cursor: pointer; }
+  .header-icons { display: flex; align-items: center; gap: 20px; }
+  .mic-button {
+    background: none; border: none; color: white;
+    font-size: 50px; cursor: pointer; 
+  }
+  .mic-button.active { color: #FF5722; }
+
+  .logout-button {
+      font-size: 30px; background: none; color: white;
+      border: 3px solid white; border-radius: 15px; padding: 10px 20px;
+      cursor: pointer; font-weight: bold;
+  }
+
+  .speech-overlay {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white; display: flex; justify-content: center; align-items: center;
+    font-size: 36px; text-align: center; z-index: 100;
+    opacity: 0; visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s;
+  }
+  .speech-overlay.visible { opacity: 1; visibility: visible; }
+
+  main { flex: 1; padding: 30px; overflow-y: auto; }
+  section { display: none; }
+  section.active { display: block; }
+  h2 { font-size: 42px; }
+
+  .home-menu {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-top: 30px;
+  }
+  .home-menu button {
+    padding: 40px 20px; font-size: 32px; font-weight: bold;
+    border: 2px solid #00796B; border-radius: 15px;
+    background-color: #E0F2F1; color: #004D40; cursor: pointer;
+  }
+
+  .friend-card {
+    border: 2px solid #BDBDBD; border-radius: 15px;
+    padding: 25px; margin-bottom: 20px;
+    background-color: #FAFAFA;
+  }
+  .friend-name { font-size: 34px; font-weight: 900; color: #004D40; }
+  .friend-category { font-size: 26px; color: #555; }
+  .friend-card button {
+    font-size: 28px; padding: 10px 20px;
+    border: none; background-color: #00796B; color: #fff;
+    border-radius: 10px; cursor: pointer; margin-top: 10px;
+  }
+
+  .product-card {
+    border: 2px solid #BDBDBD; border-radius: 15px;
+    padding: 25px; margin-bottom: 20px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .product-info { font-size: 30px; }
+  .product-card button {
+    font-size: 30px; padding: 15px 25px;
+    border: none; background-color: #00796B;
+    color: #fff; border-radius: 10px; cursor: pointer;
+  }
+
+  nav {
+    display: flex; justify-content: space-around;
+    background-color: #fff; border-top: 3px solid #eee;
+    padding: 20px 0;
+  }
+  .nav-btn {
+    flex: 1; text-align: center; font-size: 32px;
+    cursor: pointer; padding: 10px 0;
+    
+  }
+  .nav-btn.active {
+    color: #00796B; font-weight: 900;
+    background-color : #E0F2F1 !important;
+    margin: -20px 0; /* nav의 padding만큼 위아래 확장 */
+    padding: 30px 0; /* 눌리지 않게 여유 추가 */
+  }
+  #e119 {
+    background-color : #D32F2F !important; 
+    color: white !important;
+    border-color: #B71C1C !important;
+    margin: -20px 0; /* nav의 padding만큼 위아래 확장 */
+    padding: 30px 0; /* 눌리지 않게 여유 추가 */
+  }
+
+  /* ====== 긴급 연락 버튼 ====== */
+  .emergency-btn {
+    background-color : #D32F2F !important; 
+    color: white !important;
+    border-color: #B71C1C !important;
+
+    animation: blink 2s infinite;
+  }
+
+  @keyframes blink { 
+    0% { 
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.7); 
+    }
+    70% { 
+      transform: scale(1.05); 
+      box-shadow: 0 0 0 20px rgba(211, 47, 47, 0); 
+    } 
+    100% { 
+      transform: scale(1); 
+      box-shadow: 0 0 0 0 rgba(211, 47, 47, 0); 
+    } 
+  }
+
+  /* ====== 달력 스타일 ====== */
+  #calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    margin-top: 20px;
+  }
+  .calendar-day {
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    padding: 10px;
+    min-height: 80px;
+    font-size: 28px;
+    background-color: #FAFAFA;
+  }
+  .calendar-day.today { background-color: #C8E6C9; }
+  .calendar-day.empty { background: none; border: none; }
+  .day-event { color: #00796B; font-size: 26px; margin-top: 6px; }
+
+  /* ====== 지도 기능 ====== */
+    #kakaoMapContainer {
+      width: 100%;
+      height: 400px;
+    }
+
+    #container {
+      display: flex;
+      height: 500px; /* 최소 높이 지정 */
+    }
+
+    /* === 장보기(시장 & 복지관) 사이드바 스타일 test.html 동일 === */
+#sidebar {
+  font-family: "Noto Sans KR", sans-serif;
+  background: #fff;
+  padding: 16px;
+  overflow-y: auto;
+}
+.place-item {
+  background: #fafafa;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.place-item:hover {
+  background: #c8f7e8;
+}
+.place-item div:first-child {
+  color: #00796B; /* 시장 이름 */
+  font-weight: 700;
+}
+.place-item div:last-child {
+  color: #555; /* 주소 */
+}
+
+.alert-btn {
+    border: 2px solid #ff9900; /* 주황색 테두리 */
+    background-color: #fff;      /* 배경색 흰색 */
+    color: #ff9900;              /* 글자색 주황색 */
+    padding: 5px 10px;           /* 버튼 안 여백 */
+    border-radius: 8px;          /* 모서리 둥글게 */
+    cursor: pointer;             /* 마우스 올리면 포인터 */
+    font-size: 14px;
+    transition: all 0.2s ease;   /* 살짝 부드러운 효과 */
+  }
+
+  .alert-btn:hover {
+    background-color: #ff9900;   /* 마우스 오버 시 배경 주황색 */
+    color: #fff;                 /* 글자색 흰색 */
+  }
+    </style>
+  <script>
+// 페이지 어디서든 가장 먼저 실행되게 넣어
+localStorage.removeItem('rasp_base');     // 과거에 저장된 값 제거
+window.rasp_base = location.origin + '/rapi';
+</script>
+
+  <!-- Kakao Maps API 불러오기 -->
+  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=433a059560072e066820d8b58d1e68f7&autoload=false&libraries=services"></script>
+
+  <!-- 새 일정 추가하기 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div id="alarm-icon">🔔</div>
+    <div class="header-title">VitaMind</div>
+    <div class="header-icons">
+      <span id="gps-badge" style="margin-left:12px; font-size:20px; background:#fff; color:#004d40; border:2px solid #00796B; border-radius:12px; padding:4px 8px;">
+  📍 --
+</span>
+<span id="pir-dot" title="pir" style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#9e9e9e; margin-left:8px; vertical-align:middle;"></span>
+      <button class="mic-button" id="micButton" onclick="toggleMic()">🎤</button>
+      <button class="logout-button" onclick="logout()">로그아웃</button>
+      
+    </div>
+    
+  </header>
+
+  <div class="speech-overlay" id="speechOverlay">
+    <div id="speechStatus">음성 인식 대기 중...</div>
+  </div>
+
+  <main>
+    <!-- 홈 -->
+    <section id="home" class="active">
+      <div id="dht-banner" style="background:#fff9c4; border:2px solid #fbc02d; border-radius:12px; padding:12px 14px; margin:8px 0 16px; color:#444; font-weight:700; font-size:22px;">
+  🌡 측정 대기...
+</div>
+<!-- [추가] 시뮬레이션 알림 배너 -->
+<div id="sim-alert-banner" style="background:#ffe0e0;border:2px solid #ff5252;border-radius:12px;padding:12px 14px;margin:8px 0 16px;color:#b00020;font-weight:700;font-size:20px;display:none;">
+  알림 없음
+</div>
+<div style="display:flex;gap:8px;margin-bottom:12px;">
+  <button id="sim-ack" style="padding:8px 12px;border-radius:8px;border:1px solid #ccc;background:#fff;">확인</button>
+  <button id="sim-mock-alert" style="padding:8px 12px;border-radius:8px;border:1px solid #ccc;background:#fff;">가짜 경보</button>
+  <button id="sim-mock-motion" style="padding:8px 12px;border-radius:8px;border:1px solid #ccc;background:#fff;">가짜 움직임</button>
+  <button id="sim-log-open" style="padding:8px 12px;border-radius:8px;border:1px solid #ccc;background:#fff;">로그 보기</button>
+</div>
+<pre id="sim-log" style="display:none;background:#111;color:#0f0;padding:10px;border-radius:8px;max-height:200px;overflow:auto;"></pre>
+
+      <h2>🏠 어서오세요! VitaMind입니다. 👥</h2>
+      <p style="font-size:28px; font-weight:normal; margin-bottom:40px;">
+        "친구 찾아줘", "배추 담아줘" 라고 말씀해보세요.
+      </p>
+      <div class="home-menu">
+        <button onclick="show('friends')">👥<br>친구</button>
+        <button onclick="show('mapSection')">🛒<br>장보기</button>
+        <button onclick="show('map')">🗺️<br>지도</button>
+        <button onclick="show('schedule')">📅<br>우리들의 일정</button>
+        <button onclick="show('emergency')" class="emergency-btn">🚨<br>긴급 연락</button>
+        <button id="open-dashboard">대시보드 접속</button>
+      </div>
+      <div style="margin-top:18px; text-align:center;">
+        <button onclick="findNearbyFriends()" style="padding:14px 20px; font-size:28px; border-radius:12px; border:2px solid #00796B; background:#E0F2F1; cursor:pointer;">
+          📍 근처 친구 찾기
+        </button>
+      </div>
+    </section>
+    <script>
+  document.getElementById('open-dashboard').addEventListener('click', () => {
+    window.location.href = '/admin';   // 서버1에 이식된 관리자 대시보드 라우트
+  });
+</script>
+
+
+    <!-- 친구 목록 -->
+    <section id="friends">
+
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <!-- 오른쪽 버튼 -->
+        <h2>👥 친구</h2>
+        <button id="FriendrequestBtn" style="padding: 6px 12px; border-radius: 6px; border: 1px solid #ccc; background-color: #f1f1f1;">➕ 친구 요청</button>
+      </div>
+      <!-- ✅ 검색창 추가 부분 -->
+      <div style="margin-bottom: 10px;">
+        <input type="text" id="searchInput" placeholder="친구 이름을 입력하세요">
+        <button id="searchBtn">🔍 검색</button>
+      </div>
+      <div id="friends-list"></div>
+    </section>
+
+    <section id="friendssearch">
+      <button id="backToFriendsBtn" style="padding:10px 16px; font-size:24px; margin-bottom:12px; cursor:pointer;">
+        ⬅️ 친구 목록으로 돌아가기
+      </button>
+      <div id="friends-search"></div>
+    </section>
+    
+    <!-- 친구 찾기 -->
+
+    <section id="friendsfind">
+      <h2>👥 친구 찾기</h2>
+      <div id="friends-find"></div>
+    </section>
+
+    <!-- ✅ 새 시장 & 복지관 찾기 기능 -->
+      <section id="mapSection">
+        <h2>🛒 내 주변 시장 & 복지관 찾기</h2>
+
+        <div id="search-box" style="margin: 15px 0; text-align: center;">
+          <input id="marketKeyword" type="text" placeholder="market 또는 welfare을 검색하세요"
+                style="width:60%; padding:10px; font-size:1.05rem; border:2px solid #00796B; border-radius:8px;">
+          <button id="marketSearchBtn"
+                  style="margin-left:10px; padding:10px 16px; border:0; border-radius:8px; background:#00796B; color:#fff; font-size:1.05rem; cursor:pointer;">
+            🔍 검색
+          </button>
+        </div>
+
+        <div id="container" style="display:flex; flex:1; min-height:0; overflow:hidden;">
+          <div id="sidebar" style="display:none; width:380px; background:#fff; border-right:1px solid #ccc; overflow-y:auto; padding:10px;">
+            <div id="list-box"></div>
+          </div>
+          <div id="detail-panel" style="display:none; width:400px; background:#fff; border-right:1px solid #ccc; overflow-y:auto; padding:20px;"></div>
+          <div id="marketMap" style="flex:1; height:80vh;"></div>
+        </div>
+      </section>
+
+    <!-- 알림 -->
+    <section id="alerts">
+      <h2>🔔 알림</h2>
+      
+      <ul style="font-size:28px;">
+        <li>10월 22일 - 건강검진</li>
+        <li>10월 25일 - 복지관 요리 교실</li>
+        <li>10월 30일 - 시니어 음악회</li>
+      </ul>
+    </section>
+
+    <!-- 전화 -->
+    <section id="call">
+      <h2>📞 전화 걸기</h2>
+      <p style="font-size:30px;">"가족에게 전화해줘", "복지관 전화해줘"라고 말해보세요.</p>
+    </section>
+
+    <!-- 일정 -->
+    <section id="schedule">
+  <h2>📅 우리들의 일정</h2>
+  <button onclick="window.open('알림.html', '_blank')" 
+    style="margin-top:20px; padding:20px; font-size:30px; border-radius:15px; background:#00796B; color:#fff;">
+    <!-- 관리자 일정 추가하기 -->
+    ➕ 새 일정 추가하기
+    </button>
+
+  <!-- 알림.html의 달력을 그대로 임베드 -->
+  <iframe
+    id="shared-calendar"
+    src="알림.html"
+    style="width:100%; height:80vh; border:0; border-radius:12px; background:#fff;"
+    onload="try{ 
+      const w = this.contentWindow; 
+      // 알림.html 쪽 달력만 바로 열어주기
+      if (w && typeof w.openCalendarOnce==='function' && typeof w.showSection==='function') {
+        w.openCalendarOnce();
+        w.showSection('calendarSection');
+      }
+    }catch(e){ console.error('calendar init failed:', e); }"
+  ></iframe>
+</section>
+
+    <!-- 지도 -->
+    <section id="map">
+      <h1>🗺️ 내 주변 지도</h1>
+      <div id="kakaoMapContainer" style="width:80%;height:400px;"></div>
+    </section>
+    
+
+    <!-- ===== 응급 섹션 추가 ===== -->
+    <section id="emergency">
+      <div class="content-pane">
+        <h2>🚨 응급 상황</h2>
+        <p style="font-size:35px;">"도와줘", "119" 등을 말씀하세요.</p>
+        <button onclick="makeEmergencyCall('119')" class="emergency-btn"
+              style="width:100%; padding: 30px; font-size: 40px; margin-top:20px;">
+          📞 119 즉시 연결
+        </button>
+        <button onclick="makeEmergencyCall('guardian')" style="width:100%; padding: 30px; font-size: 40px; margin-top:20px;">
+          👨‍👩‍👧 보호자에게 연락
+        </button>
+      </div>
+    </section>
+    
+  </main>
+
+  <nav>
+    <div class="nav-btn active" data-target="home">홈</div>
+    <div class="nav-btn" data-target="friends">친구</div>
+    <div class="nav-btn" data-target='mapSection'>시장</div>
+    <div class="nav-btn" data-target="map">지도</div>
+    <div class="nav-btn" data-target="schedule">일정</div>
+    <div class="nav-btn" data-target="friendsfind">친구 찾기</div>
+    <div id="e119" class="nav-btn" data-target="emergency">응급</div>
+  </nav>
+</div>
+
+<script>
+// 검색 결과에서 친구 섹션으로 돌아가기
+document.getElementById("backToFriendsBtn").addEventListener("click", async () => {
+  // friends 섹션 보여주기
+  show("friends");
+
+  // DB에서 전체 친구 목록 다시 로드
+  try {
+    const res = await fetch("/db/getFriends", { method: "GET", credentials: "include" });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      friendsData1 = data.friends;  // 검색용 전역 변수 업데이트
+      renderFriends(friendsData1);   // 전체 친구 목록 렌더
+    } else {
+      friendsData1 = [];
+      renderFriends();
+    }
+  } catch (err) {
+    console.error(err);
+    friendsData1 = [];
+    renderFriends();
+  }
+});
+
+// 전역 변수로 친구 데이터 저장
+let friendsData1 = [
+  { name: "김영자", category: "운동", desc: "매일 아침 운동", phone: "01012345678" },
+  { name: "박철수", category: "산책", desc: "저녁 산책", phone: "01023456789" }
+];
+
+// friends 섹션 진입 시 친구 목록 가져오기
+async function loadFriends() {
+  try {
+    const res = await fetch("/db/getFriends", { 
+      method: "GET", 
+      credentials: "include" 
+    });
+    const data = await res.json();
+    if (data.success && Array.isArray(data.friends)) {
+      friendsData1 = data.friends;
+      renderFriends(friendsData1); // 화면 렌더
+    } else {
+      friendsData1 = [];
+      renderFriends();
+    }
+  } catch (err) {
+    console.error(err);
+    friendsData1 = [];
+    renderFriends();
+  }
+}
+
+// 검색 버튼 이벤트
+document.getElementById("searchBtn").addEventListener("click", () => {
+  const keyword = document.getElementById("searchInput").value.trim();
+  const container = document.getElementById("friends-search");
+  container.innerHTML = "";
+
+  if (!keyword) {
+    alert("검색어를 입력하세요.");
+    return;
+  }
+
+  // 전역 friendsData 기반 검색
+  const filtered = friendsData1.filter(f => f.name.includes(keyword));
+  if (filtered.length === 0) {
+    container.innerHTML = "<p>검색 결과가 없습니다.</p>";
+    return;
+  }
+
+  filtered.forEach(f => {
+    const card = document.createElement("div");
+    card.className = "friend-card";
+    card.innerHTML = `
+      <div class="friend-name">${f.name}</div>
+      <div class="friend-category">${f.hobby || f.category} 친구</div>
+      <div style="font-size:26px; margin-top:8px;">💬 ${f.profile_text || ""}</div>
+      <button onclick="call('${f.phone}', '${f.name}')">연락하기</button>
+    `;
+
+    
+    container.appendChild(card);
+  });
+
+  show("friendssearch");
+
+
+
+});
+
+// friends 섹션 show 시 자동으로 로드
+const navFriendsBtn = document.querySelector(".nav-btn[data-target='friends']");
+if (navFriendsBtn) {
+  navFriendsBtn.addEventListener("click", () => loadFriends());
+}
+
+// friends 섹션에 진입할 때 기본(local) 리스트를 자동으로 렌더할지를 제어하는 플래그
+let suppressFriendsRender = false;
+
+/* ==================== 로그아웃 ==================== */
+async function logout() { 
+  if (confirm('로그아웃 하시겠습니까?')) { 
+    try {
+      // 1. 서버에 로그아웃 요청 (세션 파괴)
+      const res = await fetch('/db/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include' // 세션/쿠키 정보 전송 필수
+      });
+
+      if (!res.ok) {
+        throw new Error('서버에서 로그아웃 실패');
+      }
+
+      // 2. 클라이언트 측 데이터 제거
+      localStorage.removeItem('isLoggedIn'); 
+      localStorage.removeItem('loggedInUser'); 
+      // loggedInUser = null; // 사용되지 않는 전역 변수 초기화 코드는 제거하거나 주석 처리
+
+      // 3. 메인 페이지로 이동
+      window.location.href = 'main.html';
+    } catch (err) {
+      console.error("로그아웃 오류:", err);
+      alert("로그아웃 처리 중 문제가 발생했습니다. 다시 시도해주세요.");
+    }
+  } 
+}
+
+
+
+/* ==================== 지도 중심 좌표 (예: 서울) ==================== */
+  let map = null; // 지도 객체를 저장할 전역 변수
+let myMarker;
+let otherUserMarkers = [];
+let locationUpdateInterval;
+let otherUserFetchInterval;
+
+const otherUsers = [
+  { name: "지석진", lat: 35.166380, lng: 126.837095 },
+  { name: "김철수", lat: 35.266385, lng: 126.937095 },
+  { name: "이영희", lat: 35.366380, lng: 126.837095 },
+];
+
+function initMap() {
+  const mapContainer = document.getElementById('kakaoMapContainer');
+  if (!mapContainer) return;
+
+  map = new kakao.maps.Map(mapContainer, {
+    center: new kakao.maps.LatLng(35.1515, 126.9091),
+    level: 4
+  });
+
+  // ✅ 내 위치 가져오기
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const myLatLng = new kakao.maps.LatLng(lat, lng);
+
+      map.setCenter(myLatLng);
+
+      // ✅ 내 위치 마커 생성
+      if (!myMarker) {
+        myMarker = new kakao.maps.Marker({
+          map: map,
+          position: myLatLng,
+          image: new kakao.maps.MarkerImage(
+            "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png",
+            new kakao.maps.Size(40, 55),
+            { offset: new kakao.maps.Point(20, 55) }
+          )
+        });
+      } else {
+        myMarker.setPosition(myLatLng);
+      }
+
+      const info = new kakao.maps.InfoWindow({
+        content: '<div style="padding:3px 5px; font-size:12px;">📍 나</div>'
+      });
+      info.open(map, myMarker);
+
+      // 서버로 내 위치 전송 (예시)
+      await updateMyLocation(lat, lng);
+
+      // ✅ 다른 사용자 위치 마커 표시
+      fetchOtherUsers();
+
+      // 주기적으로 내 위치 및 다른 사용자 갱신
+      locationUpdateInterval = setInterval(() => updateMyLocation(lat, lng), 5000);
+      otherUserFetchInterval = setInterval(() => fetchOtherUsers(), 5000);
+
+    }, () => alert("위치 정보를 불러올 수 없습니다."), { enableHighAccuracy: true });
+  } else {
+    alert("브라우저에서 위치 서비스를 지원하지 않습니다.");
+  }
+}
+
+// ✅ 내 위치 서버 업데이트 (예시)
+async function updateMyLocation(lat, lng) {
+  console.log("내 위치 서버로 전송:", lat, lng);
+  // 실제로는 fetch("/api/updateLocation", {method:"POST", body:JSON.stringify({lat,lng})})
+}
+
+// ✅ 다른 사용자 위치 불러오기
+async function fetchOtherUsers() {
+  // 실제로는 fetch("/api/otherUsers") 등으로 서버에서 받아옴
+  // 여기서는 예시로 otherUsers 배열 그대로 사용
+  console.log("다른 사용자 위치 갱신");
+
+  // 기존 마커 제거
+  otherUserMarkers.forEach(marker => marker.setMap(null));
+  otherUserMarkers = [];
+
+  otherUsers.forEach(user => {
+    const marker = new kakao.maps.Marker({
+      map: map,
+      position: new kakao.maps.LatLng(user.lat, user.lng)
+    });
+
+    const info = new kakao.maps.InfoWindow({
+      content: `<div style="padding:3px 5px; font-size:12px;">👤 ${user.name}</div>`
+    });
+
+    kakao.maps.event.addListener(marker, 'click', () => {
+      info.open(map, marker);
+    });
+
+    otherUserMarkers.push(marker);
+  });
+}
+
+// ===== UI 함수 (수정됨) =====
+async function show(id) {
+  // 모든 section 숨기기
+  document.querySelectorAll("section").forEach(s => s.classList.remove("active"));
+  const section = document.getElementById(id);
+  if (!section) return;
+
+  section.classList.add("active");
+
+  // ✅ 친구 목록
+  if (id === 'friends') {
+    fetch("/db/getFriends", { method: "GET", credentials: "include" })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          friendsData1 = data.friends;  // 🔹 DB 데이터를 검색용 변수에 저장
+          renderFriends(friendsData1);
+        } else {
+          friendsData1 = [];
+          renderFriends();
+        }
+      })
+      .catch(err => { 
+        console.error(err); 
+        friendsData1 = [];
+        renderFriends(); 
+      });
+  }
+
+  // ✅ 메인 지도
+  if (id === 'map') {
+  const mapContainer = document.getElementById('kakaoMapContainer');
+  if (!mapContainer) return;
+
+  if (map) {
+    // 이미 지도 생성됨 → 레이아웃만 재조정
+    map.relayout();
+
+    // 내 위치 마커가 있으면 마커 위치를 중심으로
+    if (myMarker1) {
+      map.setCenter(myMarker1.getPosition());
+    }
+  } else {
+    // 지도 새로 생성
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(position => {
+        const myLatLng = new kakao.maps.LatLng(position.coords.latitude, position.coords.longitude);
+
+        map = new kakao.maps.Map(mapContainer, {
+          center: myLatLng,
+          level: 5
+        });
+
+        // 내 위치 마커 생성
+        myMarker1 = new kakao.maps.Marker({
+          map: map,
+          position: myLatLng,
+          image: new kakao.maps.MarkerImage(
+            "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png",
+            new kakao.maps.Size(40, 55),
+            { offset: new kakao.maps.Point(20, 55) }
+          )
+        });
+
+        const myInfo = new kakao.maps.InfoWindow({
+          content: '<div style="padding:3px 5px; font-size:12px;">📍 나</div>'
+        });
+        myInfo.open(map, myMarker1);
+
+        // 다른 사용자 마커 추가
+        otherUsers.forEach(user => {
+          const marker = new kakao.maps.Marker({
+            map: map,
+            position: new kakao.maps.LatLng(user.lat, user.lng)
+          });
+          const info = new kakao.maps.InfoWindow({
+            content: `<div style="padding:3px 5px; font-size:12px;">👤 ${user.name}</div>`
+          });
+          kakao.maps.event.addListener(marker, 'click', () => info.open(map, marker));
+          otherMarkers.push(marker);
+        });
+
+      }, () => alert("위치 정보를 가져올 수 없습니다."));
+    } else {
+      alert('브라우저가 위치 서비스를 지원하지 않습니다.');
+    }
+  }
+}
+  if (id === 'mapSection') {
+  initMarketMap();
+  setTimeout(() => {
+    if (map2 && myPosition) {
+      map2.relayout();
+      map2.setCenter(myPosition);
+    }
+  }, 800); // 지도 표시 후 보정
+}
+
+  // 하단 메뉴 활성화
+  document.querySelectorAll(".nav-btn").forEach(b => 
+    b.classList.toggle("active", b.dataset.target === id)
+  );
+}
+
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(";").shift();
+  }
+
+  const navButtons = document.querySelectorAll('.nav-btn');
+  navButtons.forEach(btn => {
+    btn.addEventListener('click', () => show(btn.dataset.target));
+  });
+
+ 
+
+  function call(phone, name) {
+    alert(`${name}님과 연결을 시도합니다.
+    ${phone}`
+    )
+    window.location.href = `tel:${phone}`;
+  }
+
+  // ===== 음성 인식 =====
+  let recognizing = false;
+  let recognition;
+  const micBtn = document.getElementById('micButton');
+  const speechOverlay = document.getElementById('speechOverlay');
+  const speechStatus = document.getElementById('speechStatus');
+
+  if ('webkitSpeechRecognition' in window) {
+    recognition = new webkitSpeechRecognition();
+    recognition.lang = "ko-KR";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      recognizing = true;
+      micBtn.classList.add("active");
+      speechStatus.textContent = "듣고 있어요...";
+      speechOverlay.classList.add("visible");
+    };
+
+    recognition.onresult = event => {
+      const text = event.results[0][0].transcript.trim();
+      speechStatus.textContent = `"${text}"`;
+      handleVoiceCommand(text);
+    };
+
+    recognition.onend = () => {
+      recognizing = false;
+      micBtn.classList.remove("active");
+      setTimeout(() => speechOverlay.classList.remove("visible"), 1500);
+    };
+  } else {
+    alert("이 브라우저는 음성인식을 지원하지 않습니다.");
+    micBtn.style.display = "none";
+  }
+
+  function toggleMic() {
+    if (!recognition) return;
+    if (recognizing) recognition.stop();
+    else recognition.start();
+  }
+
+  // ===== 음성 명령 처리 =====
+  function speak(msg) {
+    try {
+      const u = new SpeechSynthesisUtterance(msg);
+      u.lang = "ko-KR";
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    } catch (e) {
+      // 브라우저 미지원이면 무시
+    }
+  }
+
+  // 현재 위치 기반 날씨 요약 불러오기
+  async function getWeatherSummary() {
+    const apiKey = "f6e1713bedb2e506122023e4709c57dd";
+    // 우선 브라우저 위치, 실패 시 광주(기본값)
+    let lat = 35.1595, lon = 126.8526;
+    try {
+      await new Promise((resolve, reject) => {
+        if (!navigator.geolocation) return resolve();
+        navigator.geolocation.getCurrentPosition(
+          pos => { lat = pos.coords.latitude; lon = pos.coords.longitude; resolve(); },
+          () => resolve(),
+          { enableHighAccuracy: true, timeout: 3000 }
+        );
+      });
+    } catch (_) {}
+
+    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=kr`;
+    const r = await fetch(url, { cache: "no-store" });
+    const j = await r.json();
+    const t = Math.round(j?.main?.temp ?? 0);
+    const desc = j?.weather?.[0]?.description || "날씨 정보";
+    // 간단 멘트
+    let feel = "보통이에요";
+    if (t >= 28) feel = "무더워요";
+    else if (t >= 22) feel = "따뜻해요";
+    else if (t >= 15) feel = "선선해요";
+    else if (t >= 5)  feel = "쌀쌀해요";
+    else feel = "추워요";
+    return `지금 기온은 ${t}도, ${desc}. 오늘은 ${feel}.`;
+  }
+
+  // ===== 새 음성 명령 처리 =====
+  async function handleVoiceCommand(text) {
+    const t = text.replace(/\s+/g, "");
+
+    // 6) "친구 찾아줘" / "근처 친구"
+    if ((t.includes("친구찾아줘")) || (t.includes("근처") && t.includes("친구"))) {
+      show("friendsfind"); // 근처 친구찾기 섹션(프로젝트 구조에 맞게)
+      if (typeof findNearbyFriends === "function") findNearbyFriends();
+      return;
+    }
+
+    // 1) "친구" → 친구 섹션
+    if (t.includes("친구")) {
+      show("friends");
+      if (typeof renderFriends === "function") renderFriends();
+      return;
+    }
+
+    // 2) "시장" / "복지관" / "장보기" → 장보기/근처시설 지도 섹션 (mapSection)
+    if (t.includes("시장") || t.includes("복지관") || t.includes("장보기")) {
+      show("mapSection"); // 기존의 잘못된 'market' 호출을 교정
+      return;
+    }
+
+    // 3) "지도" → 메인 지도
+    if (t.includes("지도")) {
+      show("map");
+      return;
+    }
+
+    // 4) "일정" → 우리들의 일정
+    if (t.includes("일정")) {
+      show("schedule");
+      if (typeof renderSchedule === "function") renderSchedule();
+      return;
+    }
+
+    // 5) "긴급" → 긴급 연락
+    if (t.includes("긴급")) {
+      show("emergency");
+      return;
+    }
+
+    // 7) "날씨" → 날씨 말해주기
+    if (t.includes("날씨")) {
+      try {
+        const summary = await getWeatherSummary();
+        speak(summary);
+        // 배너가 있다면 텍스트도 업데이트(선택)
+        const banner = document.querySelector("#banner #dht-text");
+        if (banner) banner.textContent = `☁ ${summary}`;
+      } catch (e) {
+        speak("날씨 정보를 가져오지 못했어요.");
+      }
+      return;
+    }
+  }
+
+/* ==================== 응급 호출 ==================== */
+function makeEmergencyCall(target) {
+  if(target === '119') {
+    window.location.href = 'tel:119';
+  } else if(target === 'guardian') {
+    // 보호자 번호를 미리 지정하세요
+    const guardianPhone = '01012345678';
+    window.location.href = `tel:${guardianPhone}`;
+  }
+}
+
+
+// renderFriends: DB에서 가져온 친구 목록을 화면에 표시
+function renderFriends(friendsList = friends) {
+  const container = document.getElementById("friends-list");
+  container.innerHTML = "";
+
+  if (!friendsList || friendsList.length === 0) {
+    container.innerHTML = "<p>친구가 없습니다.</p>";
+    return;
+  }
+
+  friendsList.forEach(person => {
+    // 카드 생성
+    const card = document.createElement("div");
+    card.className = "friend-card";
+    // 기존 스타일 + 두 번째 코드 스타일 통합
+    card.style.display = "flex";
+    card.style.justifyContent = "space-between";
+    card.style.alignItems = "center";
+    card.style.maxWidth = "600px";
+    card.style.border = "1px solid #ccc";
+    card.style.borderRadius = "12px";
+    card.style.padding = "16px";
+    card.style.marginBottom = "12px";
+    card.style.backgroundColor = "#fff";
+    card.style.boxShadow = "0 2px 6px rgba(0,0,0,0.1)";
+
+    // 정보 박스
+    const infoBox = document.createElement("div");
+    infoBox.style.display = "flex";
+    infoBox.style.flexDirection = "column";
+    infoBox.style.flex = "1";
+
+    const nameEl = document.createElement("h3");
+    nameEl.textContent = person.name;
+    const categoryEl = document.createElement("div");
+    categoryEl.textContent = `관심 : ${person.category || person.hobby || "친구"}`;
+    categoryEl.style.color = "#555";
+    const descEl = document.createElement("p");
+    descEl.textContent = `💬 ${person.profile_text || "같이 활동할 친구입니다."}`;
+    descEl.style.fontSize = "14px";
+    const phoneBtn = document.createElement("button");
+    phoneBtn.textContent = "연락하기";
+    phoneBtn.onclick = () => call(person.phone || "010-0000-0000", person.name);
+
+    infoBox.append(nameEl, categoryEl, descEl);
+    card.append(infoBox, phoneBtn);
+    container.appendChild(card);
+  });
+}
+
+// 1. 친구 목록 렌더 함수 정의 (전역)
+  async function loadFriends() {
+    const res = await fetch("/db/getFriends", { method: "GET", credentials: "include" });
+    const container = document.getElementById("friends-list");
+    container.innerHTML = "";
+
+    const data = await res.json();
+    if (!data.success) return;
+
+    data.friends.forEach(f => {
+      const div = document.createElement("div");
+      div.textContent = `${f.name} (${f.hobby || ""})`;
+      container.appendChild(div);
+    });
+  }
+
+/* ==================== 친구 찾기 ==================== */
+// == helper: secure context 여부 (https or localhost) ==
+function isSecureContextForGeo() {
+  return (location.protocol === 'https:') ||
+         (location.hostname === 'localhost') ||
+         (location.hostname === '127.0.0.1');
+}
+
+async function findNearbyFriends() {
+  // 1) 섹션 먼저 열기 (항상 진입)
+  show("friendsfind");
+  const container = document.getElementById("friends-find");
+  if (container) container.innerHTML = "<p>내 위치 확인 중...</p>";
+
+  // 2) https 아님 → 브라우저가 위치 차단함
+  if (!isSecureContextForGeo()) {
+    if (container) {
+      container.innerHTML =
+        "<p>⚠ 위치 권한은 HTTPS(또는 localhost)에서만 동작해. <br>ngrok https 주소로 접속해줘.</p>";
+    }
+    return; // 여기서 끝 (화면은 열린 상태)
+  }
+
+  // 3) 위치 지원 확인
+  if (!navigator.geolocation) {
+    if (container) container.innerHTML = "<p>이 브라우저는 위치 서비스를 지원하지 않아.</p>";
+    return;
+  }
+
+  // 4) 실제 위치 조회 + 서버 통신
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const { latitude, longitude } = pos.coords;
+
+    try {
+      await fetch("/db/updateLocation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ latitude, longitude }),
+      });
+
+      const res = await fetch("/db/nearby", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ latitude, longitude }),
+      });
+
+      const result = await res.json();
+      if (!result.success) {
+        if (container) container.innerHTML = `<p>오류: ${result.message}</p>`;
+        return;
+      }
+
+      const list = (result.data || []).map(f => ({
+        id: f.id,
+        name: f.name || f.id,
+        hobby: f.hobby || "친구",
+        profile_text: `💬 ${f.profile_text || "같이 활동할 친구입니다."}`,
+        phone: f.phone || "010-0000-0000",
+        distance: f.distance
+      }));
+
+      // 거리 포함 렌더 (전역 renderFriendsFind 사용)
+      if (typeof renderFriendsFind === "function") {
+        renderFriendsFind(list);
+      } else if (container) {
+        container.innerHTML = list.length
+          ? list.map(p => `<div>${p.name} (${p.distance.toFixed(2)} km)</div>`).join("")
+          : "<p>근처에 친구가 없어.</p>";
+      }
+    } catch (err) {
+      console.error(err);
+      if (container) container.innerHTML = "<p>근처 친구 조회 중 오류가 발생했어.</p>";
+    }
+  }, (err) => {
+    console.error(err);
+    if (container) container.innerHTML = "<p>위치 권한이 거부되었거나 가져오지 못했어.</p>";
+  });
+}
+
+
+/* ==================== UI 함수 ==================== */
+// ====== 시장 지도용 전역 변수 선언 (반드시 추가) ======
+let map2, ps, myPosition;
+let markers = [];
+let selectedMarker = null;
+let activeItem = null;
+
+// ✅ DOM 요소 연결 (목록 / 사이드바 / 상세보기 패널)
+const sidebarEl = document.getElementById("sidebar");
+const listBoxEl = document.getElementById("list-box");
+const detailEl = document.getElementById("detail-panel");
+const containerEl = document.getElementById("container");
+
+function initMarketMap() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = 35.150534555935;
+        const lng = 126.91606603466;
+        initMap2(lat, lng);
+      },
+      () => {
+        alert("현재 위치를 불러올 수 없어 기본 위치로 설정합니다.");
+        initMap2(35.150534555935, 126.91606603466);
+      },
+      {
+        enableHighAccuracy: true, // GPS/WiFi 모두 사용
+        timeout: 10000,           // 10초 내 응답
+        maximumAge: 0             // 캐시 사용 안함
+      }
+    );
+  } else {
+    alert("이 브라우저는 위치 서비스를 지원하지 않습니다.");
+    initMap2(35.1468, 126.9226);
+  }
+}
+// ✅ 마커 전역 변수 선언 (지도 마커 아이콘 이미지)
+let markerNormal;
+let markerSelected;
+
+// ✅ Kakao SDK를 DOMContentLoaded 이후에 로드
+document.addEventListener("DOMContentLoaded", () => {
+  kakao.maps.load(() => {
+    console.log("✅ Kakao Maps SDK 로드 완료");
+
+    // 마커 이미지 미리 세팅
+    markerNormal = new kakao.maps.MarkerImage(
+      "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png",
+      new kakao.maps.Size(40, 55),
+      { offset: new kakao.maps.Point(20, 55) }
+    );
+    markerSelected = new kakao.maps.MarkerImage(
+      "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_red.png",
+      new kakao.maps.Size(45, 60),
+      { offset: new kakao.maps.Point(22, 60) }
+    );
+
+    // 페이지가 로드되면 marketMap 초기화
+    initMarketMap();
+  });
+});
+
+function initMap2(lat, lng) {
+  const mapContainer = document.getElementById('marketMap');
+  const opt = { center: new kakao.maps.LatLng(lat, lng), level: 4 };
+  map2 = new kakao.maps.Map(mapContainer, opt);
+  ps  = new kakao.maps.services.Places();
+  myPosition = new kakao.maps.LatLng(lat, lng);
+
+  const myMarker = new kakao.maps.Marker({ map: map2, position: myPosition });
+  new kakao.maps.InfoWindow({ content: '<div style="padding:3px 5px; font-size:12px;">📍 현재 내 위치</div>'}).open(map2, myMarker);
+
+  // ✅ 지도 표시가 안될 때 꼭 추가해야 하는 부분
+  setTimeout(() => {
+    map2.relayout();                 // 지도의 레이아웃 재조정
+    map2.setCenter(myPosition);      // 중심좌표 다시 지정
+  }, 300); // 0.3초 후 실행
+}
+
+// 검색
+document.getElementById('marketSearchBtn').addEventListener('click', () => {
+  const keyword = document.getElementById('marketKeyword').value.trim();
+  if (!keyword) { alert('검색어를 입력하세요!'); return; }
+  containerEl.classList.add('with-panels');
+  searchNearby(keyword);
+});
+
+function searchNearby(keyword) {
+  if (!myPosition) { alert('위치 정보를 불러오는 중입니다.'); return; }
+  ps.keywordSearch(keyword, placesSearchCB, { location: myPosition, radius: 20000 });
+}
+
+function placesSearchCB(data, status) {
+  if (status !== kakao.maps.services.Status.OK) {
+    listBoxEl.innerHTML = '<p>검색 결과가 없습니다.</p>';
+    return;
+  }
+  sidebarEl.style.display = 'block';
+  clearMarkers();
+  listBoxEl.innerHTML = '';
+  detailEl.classList.remove('show');
+  detailEl.innerHTML = '';
+
+  const bounds = new kakao.maps.LatLngBounds();
+  data.forEach(place => {
+    const marker = createMarker(place);
+    appendListItem(place, marker);
+    bounds.extend(new kakao.maps.LatLng(place.y, place.x));
+  });
+  map2.setBounds(bounds);
+}
+
+function createMarker(place) {
+  const marker = new kakao.maps.Marker({
+    map: map2,
+    position: new kakao.maps.LatLng(place.y, place.x),
+    image: markerNormal
+  });
+  kakao.maps.event.addListener(marker, 'click', () => selectMarker(marker, place));
+  markers.push(marker);
+  return marker;
+}
+
+function selectMarker(marker, place) {
+  if (selectedMarker && selectedMarker !== marker)
+    selectedMarker.setImage(markerNormal);
+  marker.setImage(markerSelected);
+  selectedMarker = marker;
+  const pos = new kakao.maps.LatLng(place.y, place.x);
+  map2.panTo(pos);
+  if (map2.getLevel() > 3) map2.setLevel(3, { animate: { duration: 400 } });
+  showDetail(place);
+}
+
+function appendListItem(place, marker) {
+  const item = document.createElement('div');
+  item.className = 'place-item';
+  item.style = 'background:#fafafa;border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;';
+  item.innerHTML = `<div style="color:#00796B;font-weight:700;">${place.place_name}</div>
+                    <div style="color:#555;">${place.address_name}</div>`;
+  item.addEventListener('click', () => {
+    if (activeItem) activeItem.style.background = '#fafafa';
+    item.style.background = '#c8f7e8';
+    activeItem = item;
+    selectMarker(marker, place);
+  });
+  listBoxEl.appendChild(item);
+}
+
+function showDetail(place) {
+  const rating = (Math.random()*1.5 + 3.5).toFixed(1);
+  const reviews = Math.floor(Math.random()*400) + 50;
+  detailEl.style.display = 'block';
+  detailEl.innerHTML = `
+    <h2 style="color:#00796B;">${place.place_name}</h2>
+    <div style="color:#FFD700;">⭐ ${rating} / 5.0 (${reviews}명 리뷰)</div>
+    <p>📌 ${place.address_name}</p>
+    ${place.phone ? `<p>📞 ${place.phone}</p>` : ''}
+    ${place.category_name ? `<p>🏷 ${place.category_name}</p>` : ''}
+    <button id="close-detail" style="margin-top:10px;padding:8px 14px;border:0;border-radius:8px;background:#00796B;color:#fff;cursor:pointer;">닫기</button>`;
+  document.getElementById('close-detail').addEventListener('click', () => {
+    detailEl.style.display = 'none';
+    if (activeItem) activeItem.style.background = '#fafafa';
+  });
+}
+
+function clearMarkers() {
+  markers.forEach(m => m.setMap(null));
+  markers = []; selectedMarker = null;
+}
+
+
+
+/* ==================== 달력 ==================== */
+if (false) {
+async function renderSchedule(yearArg, monthArg) {
+  // yearArg/monthArg가 없으면 "오늘 달" 사용
+  const today = new Date();
+  const year  = Number.isInteger(yearArg)  ? yearArg  : today.getFullYear(); // ex) 2025
+  const month = Number.isInteger(monthArg) ? monthArg : today.getMonth();    // 0~11
+
+  const calendarGrid = document.getElementById('calendar-grid');
+  if (!calendarGrid) return;
+
+  // reset grid
+  calendarGrid.innerHTML = '';
+
+  // month meta
+  const firstDay     = new Date(year, month, 1).getDay();         // 0=Sun
+  const daysInMonth  = new Date(year, month + 1, 0).getDate();    // last day
+  const yyyy         = String(year);
+  const mm           = String(month + 1).padStart(2, '0');        // zero-pad month
+  const ddLast       = String(daysInMonth).padStart(2, '0');      // zero-pad day
+  const rangeStart   = `${yyyy}-${mm}-01`;                        // safe lexicographic range
+  const rangeEnd     = `${yyyy}-${mm}-${ddLast}`;
+
+  // fill empty slots (leading)
+  for (let i = 0; i < firstDay; i++) {
+    const empty = document.createElement('div');
+    empty.className = 'calendar-day empty';
+    calendarGrid.appendChild(empty);
+  }
+
+  // fetch month events (inclusive range) — keep past events
+  const snap = await db.collection('events')
+    .where('date', '>=', rangeStart)
+    .where('date', '<=', rangeEnd)
+    .orderBy('date', 'asc')
+    .get();
+
+  // group by day
+  const eventsByDay = {};
+  snap.forEach(doc => {
+    const e = doc.data();                 // {title, date, time, details, owner}
+    const day = parseInt(e.date.slice(8, 10), 10); // 'YYYY-MM-**DD**'
+    if (!eventsByDay[day]) eventsByDay[day] = [];
+    eventsByDay[day].push({ id: doc.id, ...e });
+  });
+
+  // build days
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dayDiv = document.createElement('div');
+    dayDiv.className = 'calendar-day';
+
+    // highlight today
+    if (
+      day === today.getDate() &&
+      month === today.getMonth() &&
+      year  === today.getFullYear()
+    ) {
+      dayDiv.classList.add('today'); // css already exists
+    }
+
+    // header number
+    const num = document.createElement('div');
+    num.className = 'day-number';
+    num.textContent = String(day);
+    dayDiv.appendChild(num);
+
+    // events list (show past too; just dim)
+    const evts = eventsByDay[day] || [];
+    evts.forEach(ev => {
+      const line = document.createElement('div');
+      line.className = 'day-event';
+
+      // compute past flag
+      const evtDateTime = new Date(`${ev.date}T${(ev.time || '00:00')}`);
+      const isPast = evtDateTime < today;
+
+      // text
+      line.innerHTML = `
+        <span style="${isPast ? 'opacity:.6;' : ''}">
+          ${ev.title}${ev.details ? ` - ${ev.details}` : ''}
+          ${isPast ? ' • 지난 일정' : ''}
+        </span>
+        <button class="alert-btn"
+                onclick="addAlert('${ev.title.replace(/'/g, "\\'")}',
+                                  '${ev.date}',
+                                  '${(ev.time || '').replace(/'/g, "\\'")}')">🔔 알림 추가</button>
+      `;
+      dayDiv.appendChild(line);
+    });
+
+    // click to add fast
+    dayDiv.addEventListener('click', () => {
+      const d = String(day).padStart(2, '0');
+      openAddEventPopup(`${yyyy}-${mm}-${d}`);
+    });
+
+    calendarGrid.appendChild(dayDiv);
+  }
+}
+}
+
+// OPTIONAL: 일정 탭 들어올 때 렌더
+document.addEventListener('DOMContentLoaded', () => {
+  // 오늘 달 렌더 (필요 시 show('schedule')에서 다시 호출해도 됨)
+  try { renderSchedule(); } catch (e) { console.error(e); }
+});
+
+// 🔔 알림 섹션에 일정 추가
+function addAlert(title, date, time) {
+    const alertList = document.querySelector("#alerts ul");
+
+    // Firestore 일정처럼 Date 객체로 변환
+    const eventTime = new Date(`${date}T${time || "00:00"}`); // time 없으면 00:00
+
+    const month = eventTime.getMonth() + 1;
+    const day = eventTime.getDate();
+    const hours = eventTime.getHours().toString().padStart(2, "0");
+    const minutes = eventTime.getMinutes().toString().padStart(2, "0");
+
+    const formattedTime = `${month}월 ${day}일 ${hours}:${minutes}분`;
+
+    const li = document.createElement("li");
+    li.textContent = `${formattedTime} - ${title}`;
+    alertList.appendChild(li);
+
+    alert(`${title} 일정이 알림 목록에 추가되었습니다.`);
+}
+
+// 알림.html → project.html 통신 수신
+  window.addEventListener("message", (e) => {
+    // 같은 출처만 엄격히 허용하려면 아래 주석 해제
+    // if (e.origin !== location.origin) return;
+
+    const data = e.data || {};
+    if (data.type !== "ADD_ALERT") return;
+
+    // project.html의 기존 addAlert() 재사용
+    try {
+      addAlert(data.title, data.date, data.time || "");
+      // 원하는 경우 알림 탭으로 전환하거나 아이콘 강조
+      // show('alerts');
+      // document.getElementById('alarm-icon').classList.add('pulse');
+    } catch (err) {
+      console.error("ADD_ALERT 처리 실패:", err);
+    }
+  });
+
+/* ==================== 로그인 / 초기화 ==================== */
+function initializeMainApp() {
+  renderSchedule();
+  renderFriends();
+}
+
+/* ==================== 이벤트 등록 ==================== */
+document.addEventListener("DOMContentLoaded", () => {
+  // 헤더 클릭 → 홈으로
+  document.querySelector('.header-title').onclick = () => show('home');
+  
+  document.querySelector('#alarm-icon').onclick = () => show('alerts');
+
+  // 하단 메뉴 클릭 이벤트 등록
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.target;
+      show(target);
+    });
+  });
+
+  // 기존 초기화
+  initializeMainApp();
+  initMap();
+});
+
+/* ==================== 전화 ==================== */
+function call(phone, name) {
+  alert(`${name}님과 연결을 시도합니다.\n${phone}`);
+  window.location.href = `tel:${phone}`;
+}
+</script>
+
+ <!-- ✅ Firebase SDK 추가 -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<script>
+// ✅ Firebase 초기화
+const firebaseConfig = {
+  apiKey: "AIzaSyCRcveuTZCzVS9wSfBU4j0oUtayypqmVF8",
+  authDomain: "vitamind-senior.firebaseapp.com",
+  projectId: "vitamind-senior",
+  storageBucket: "vitamind-senior.firebasestorage.app",
+  messagingSenderId: "1051160585043",
+  appId: "1:1051160585043:web:676e5f3087addf4972b7a6",
+  measurementId: "G-RB8Q4GWLPS"
+};
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ✅ Firestore 일정 실시간 감시 및 알림 기능
+function startEventAlertListener() {
+  const alertBefore = parseInt(localStorage.getItem("alertBefore") || "10"); // 기본 10분 전
+  db.collection("events").onSnapshot(snapshot => {
+    const now = new Date();
+    const future = new Date(now.getTime() + alertBefore * 60000);
+
+    snapshot.forEach(doc => {
+      const e = doc.data();
+      const eventTime = new Date(`${e.date}T${e.time}`);
+
+      if (eventTime > now && eventTime <= future) {
+        const key = `notified_${doc.id}`;
+        if (!localStorage.getItem(key)) {
+          localStorage.setItem(key, "true");
+          alert(`🔔 ${e.title} 일정이 곧 시작됩니다!\n(${e.time}, ${alertBefore}분 전)`);
+
+                  // 브라우저 알림 (허용된 경우)
+          if (Notification.permission === "granted") {
+            new Notification(`🔔 ${e.title}`, {
+              body: `${alertBefore}분 후 시작 (${e.time})`,
+              icon: "https://cdn-icons-png.flaticon.com/512/190/190411.png"
+            });
+          }
+        }
+      }
+    });
+  });
+}
+
+// ✅ Firestore 일정 목록 표시 (달력 밑에 붙여 표시)
+async function renderEventListFromFirestore() {
+  const container = document.createElement("div");
+  container.id = "firestoreEventList";
+  container.style = `
+    margin-top:40px;
+    background:#fff;
+    border-radius:15px;
+    padding:25px;
+    font-size:28px;
+    line-height:1.6;
+  `;
+  document.querySelector("#schedule")?.appendChild(container);
+
+  const snap = await db.collection("events").orderBy("date", "asc").get();
+  const now = new Date();
+  let html = "";
+
+  for (const doc of snap.docs) {
+  const e = doc.data();
+  const eventTime = new Date(`${e.date}T${e.time}`);
+  const isPast = eventTime < now;
+
+  html += `
+    <div class="border-b py-2 ${isPast ? 'opacity-60' : ''}">
+      <strong>${e.title}</strong> (${e.date} ${e.time})<br>
+      <span class="text-gray-600">${e.details || "(세부 내용 없음)"}${isPast ? " • 지난 일정" : ""}</span>
+      <p class="text-sm text-gray-400 mt-1">작성자: ${e.owner}</p>
+    </div>`;
+}
+ container.innerHTML = `
+    <h3 style="font-size:34px; margin-bottom:15px;">📋 일정 목록</h3>
+    ${html || "<p>등록된 일정이 없습니다.</p>"}
+  `;
+}
+// ✅ 브라우저 알림 권한 요청
+document.addEventListener("DOMContentLoaded", () => {
+  if (Notification && Notification.permission !== "granted") {
+    Notification.requestPermission();
+  }
+  startEventAlertListener();
+  renderEventListFromFirestore();
+});
+
+// 하단 네비게이션 버튼에 이벤트 추가
+document.querySelector(".nav-btn[data-target='friendsfind']")
+  .addEventListener("click", () => {
+    findNearbyFriends(); // 근처 친구 찾기 함수 호출
+  });
+</script>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  // URL에 #schedule이 붙어있는 경우
+  if (window.location.hash === '#schedule') {
+    show('schedule'); // 이미 정의된 show() 함수 이용
+  }
+});
+
+/* ==================== 장보기(시장, 복지관) 지도 기능 ==================== */
+// map2, ps는 이미 전역에서 정의되어 있다고 가정
+let infowindow; // 인포윈도우만 새로 선언
+
+window.addEventListener("DOMContentLoaded", () => {
+  // ✅ 지도 초기화
+  const mapContainer = document.getElementById('marketMap');
+  if (mapContainer) {
+    const centerPos = new kakao.maps.LatLng(35.1515, 126.9091); // 초기 위치
+    const mapOption = { center: centerPos, level: 5 };
+    if (!map2) map2 = new kakao.maps.Map(mapContainer, mapOption);
+
+    if (!ps) ps = new kakao.maps.services.Places();
+    infowindow = new kakao.maps.InfoWindow({ zIndex: 1 });
+  }
+
+  // ✅ 검색 버튼 이벤트 등록
+  const searchBtn = document.getElementById("marketSearchBtn");
+  if (searchBtn) {
+    searchBtn.addEventListener("click", searchMarketPlaces);
+  }
+});
+
+// ✅ 장소 검색 함수
+function searchMarketPlaces() {
+  const keywordInput = document.getElementById('marketKeyword');
+  const keyword = keywordInput ? keywordInput.value.trim() : '';
+  if (!keyword) {
+    alert("검색어를 입력해주세요.");
+    return;
+  }
+
+  const listBox = document.getElementById("list-box");
+  if (listBox) listBox.innerHTML = "<p>위치 정보를 불러오는 중입니다...</p>";
+
+  // 👇👇👇 추가: 사이드바 보이게
+  if (typeof sidebarEl !== 'undefined' && sidebarEl) {
+    sidebarEl.style.display = 'block';
+  }
+  if (typeof detailEl !== 'undefined' && detailEl) {
+    detailEl.style.display = 'none';
+  }
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      const userLoc = new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+      if (map2) map2.setCenter(userLoc);
+      if (ps) ps.keywordSearch(keyword, placesSearchCB, { location: userLoc });
+    }, () => {
+      if (ps) ps.keywordSearch(keyword, placesSearchCB);
+    });
+  } else {
+    if (ps) ps.keywordSearch(keyword, placesSearchCB);
+  }
+}
+
+// ===== rasp api 기본주소 =====
+// 1) 우선 localStorage('rasp_base') 사용. 없으면 아래 기본값 사용.
+// 2) ngrok url로 바꿔서 쓰자. 예: https://xxxxx.ngrok-free.dev
+// 같은 오리진 프록시로 고정
+let rasp_base = localStorage.getItem('rasp_base') || (location.origin + '/rapi');
+
+// ===== 헬퍼: rasp_base 저장 =====
+// 입력: url 문자열
+function set_rasp_base(url) {
+  // 공백 제거. // 중복 슬래시 제거.
+  const clean = (url || '').trim().replace(/\/+$/,'');
+  if (!clean) return;
+  rasp_base = clean;
+  localStorage.setItem('rasp_base', clean);
+}
+
+// ===== 헬퍼: url 빌드 =====
+// 입력: 경로. 예: '/dht'
+function build_url(path) {
+  const base = (rasp_base || '').replace(/\/+$/, '') + '/';
+  const rel  = String(path || '').replace(/^\/+/, '');
+  const u = new URL(base + rel);
+  return u.toString(); // ngrok 쿼리 제거
+}
+
+// ===== 헬퍼: json fetch =====
+// 실패 시 에러 throw. content-type 점검.
+async function fetch_json(url) {
+  const r = await fetch(url, {
+    cache: 'no-store'
+  });
+  const ct = r.headers.get('content-type') || '';
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(`http ${r.status} ${r.statusText}: ${text.slice(0,120)}`);
+  }
+  if (!ct.includes('application/json')) {
+    const text = await r.text();
+    throw new Error(`json not returned (ct=${ct}): ${text.slice(0,120)}`);
+  }
+  return r.json();
+}
+
+// ===== 표현식: 더위 문구 =====
+// 입력: 섭씨. 출력: 한 줄 문구.
+function heat_phrase(tc) {
+  const t = Number(tc);
+  if (isNaN(t)) return '날씨 정보를 확인 중';
+  if (t >= 29) return '오늘은 많이 덥습니다';
+  if (t >= 25) return '오늘은 덥습니다';
+  if (t >= 18) return '오늘은 선선합니다';
+  if (t >= 5)  return '오늘은 쌀쌀합니다';
+  return '오늘은 매우 춥습니다';
+}
+
+// ===== 렌더: 배너/GPS/PIR =====
+// 입력: dht, sensor, gps json
+function render_sensors(dht, sensor, gps) {
+  // dht 배너
+  const banner = document.getElementById('dht-banner');
+  if (banner) {
+    const tc = (dht?.temperature_c ?? dht?.temp_c ?? '-');
+    const hu = (dht?.humidity_pct ?? dht?.humidity ?? '-');
+    const line = `${heat_phrase(tc)} (🌡 ${tc}°C · 💧 ${hu}%)`;
+    banner.textContent = line;
+  }
+
+  // gps 뱃지
+  const gpsBadge = document.getElementById('gps-badge');
+  if (gpsBadge) {
+    if (gps?.ok && typeof gps.lat === 'number' && typeof gps.lon === 'number') {
+      // 소수 6자리 고정.
+      gpsBadge.textContent = `📍 ${gps.lat.toFixed(6)}, ${gps.lon.toFixed(6)}`;
+    } else {
+      gpsBadge.textContent = '📍 gps 대기';
+    }
+  }
+
+  // pir 점등
+  const pirDot = document.getElementById('pir-dot');
+  if (pirDot) {
+    const on = Number(sensor?.pir) === 1;
+    pirDot.style.background = on ? '#d32f2f' : '#2e7d32'; // on=red, off=green
+  }
+}
+
+// ===== 폴링 1회 =====
+// 성공: render 호출. 실패: 배너에 경고.
+async function refresh_sensors_once() {
+  try {
+    // 상태 점검
+    await fetch_json(build_url('/health'));
+
+    // 병렬 호출: dht/sensor/gps
+    const [dht, sensor, gps] = await Promise.all([
+      fetch_json(build_url('/dht')),
+      fetch_json(build_url('/sensor')),
+      fetch_json(build_url('/gps'))
+    ]);
+
+    render_sensors(dht, sensor, gps);
+  } catch (e) {
+    const banner = document.getElementById('dht-banner');
+    if (banner) banner.textContent = `센서 통신 오류: ${e.message}`;
+  }
+}
+
+// ===== 폴링 시작 =====
+// 페이지 로드 후 자동 시작. 2초 간격.
+let _sensor_timer = null;
+function start_sensor_poll() {
+  if (_sensor_timer) clearInterval(_sensor_timer);
+  refresh_sensors_once();
+  _sensor_timer = setInterval(refresh_sensors_once, 2000);
+}
+
+// ===== 부팅 =====
+document.addEventListener('DOMContentLoaded', () => {
+  // 필요하면 한 번만 설정. 예) set_rasp_base('https://xxxxx.ngrok-free.dev');
+  start_sensor_poll();
+});
+
+// ===== sim api base =====
+// 목적: 서버의 시뮬레이터 상태 폴링.
+// 엔드포인트: /sim/state, /sim/log, /sim/mock/*, /sim/reset
+const sim_base = '';
+
+async function sim_get_json(p) {
+  const r = await fetch(sim_base + p, { credentials:'include' });
+  if (!r.ok) throw new Error('http ' + r.status);
+  return r.json();
+}
+async function sim_post_json(p, body={}) {
+  const r = await fetch(sim_base + p, {
+    method:'POST',
+    headers:{ 'content-type':'application/json' },
+    credentials:'include',
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error('http ' + r.status);
+  return r.json();
+}
+
+function render_sim(state) {
+  const banner = document.getElementById('sim-alert-banner');
+  if (!banner) return;
+  const inwin = state.data.in_window;
+  const alerting = state.data.alerting;
+  const last = state.data.last_alert_at;
+  banner.style.display = 'block';
+  if (!inwin) {
+    banner.style.background = '#e0f7fa';
+    banner.style.borderColor = '#26c6da';
+    banner.style.color = '#006064';
+    banner.textContent = '감시 시간대 아님 (09~22시)';
+    return;
+  }
+  if (alerting) {
+    banner.style.background = '#ffe0e0';
+    banner.style.borderColor = '#ff5252';
+    banner.style.color = '#b00020';
+    banner.textContent = (last ? `무동작 경보 발생(시뮬레이션). 연락 완료 처리됨: ${last}` : '무동작 경보 발생(시뮬레이션). 연락 완료 처리됨.');
+  } else {
+    banner.style.background = '#e8f5e9';
+    banner.style.borderColor = '#66bb6a';
+    banner.style.color = '#1b5e20';
+    banner.textContent = '정상. 무동작 경보 없음';
+  }
+}
+
+async function sim_refresh_once() {
+  try {
+    const s = await sim_get_json('/sim/state');
+    render_sim(s);
+  } catch (e) {
+    const banner = document.getElementById('sim-alert-banner');
+    if (banner) {
+      banner.style.display = 'block';
+      banner.style.background = '#fff3cd';
+      banner.style.borderColor = '#ffecb5';
+      banner.style.color = '#7f6f00';
+      banner.textContent = '시뮬레이터 연결 대기';
+    }
+  }
+}
+
+let sim_timer = null;
+function sim_start_poll() {
+  if (sim_timer) clearInterval(sim_timer);
+  sim_refresh_once();
+  sim_timer = setInterval(sim_refresh_once, 5000);
+}
+
+// 버튼 핸들러
+document.getElementById('sim-ack')?.addEventListener('click', async () => {
+  try { await sim_post_json('/sim/reset'); await sim_refresh_once(); } catch(e){ alert(e.message); }
+});
+document.getElementById('sim-mock-alert')?.addEventListener('click', async () => {
+  try { await sim_post_json('/sim/mock/alert'); await sim_refresh_once(); } catch(e){ alert(e.message); }
+});
+document.getElementById('sim-mock-motion')?.addEventListener('click', async () => {
+  try { await sim_post_json('/sim/mock/motion'); await sim_refresh_once(); } catch(e){ alert(e.message); }
+});
+document.getElementById('sim-log-open')?.addEventListener('click', async () => {
+  const pre = document.getElementById('sim-log');
+  if (!pre) return;
+  if (pre.style.display === 'none') {
+    try { 
+      const js = await sim_get_json('/sim/log'); 
+      pre.textContent = js.data.map(x => `[${x.ts}] ${x.type} | ${x.msg}`).join('\n');
+      pre.style.display = 'block';
+    } catch(e){ alert(e.message); }
+  } else {
+    pre.style.display = 'none';
+  }
+});
+
+// 부팅
+document.addEventListener('DOMContentLoaded', () => {
+  sim_start_poll(); // 자동 폴링 시작
+});
+</script>
+
+<!-- Twemoji: 이모지를 SVG 이미지로 통일 표시 -->
+<script src="https://twemoji.maxcdn.com/v/latest/twemoji.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // 페이지 전체 이모지를 SVG로 치환
+    twemoji.parse(document.body, {
+      folder: 'svg',  // svg 사용(선명)
+      ext: '.svg',
+      // 필요 시 특정 컨테이너만: twemoji.parse(document.getElementById('app'), {...})
+    });
+  });
+</script>
+
+</body>
+</html>

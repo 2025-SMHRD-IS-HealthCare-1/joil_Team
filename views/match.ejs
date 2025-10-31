@@ -1,0 +1,65 @@
+<h2>🤝 친구 매칭</h2>
+
+<section class="card" style="margin-bottom:16px;max-width:720px">
+  <h3>매칭 요청 만들기</h3>
+  <form method="post" action="/match/requests">
+    <label>요청 내용</label>
+    <input name="content" placeholder="같이 산책하실 분 구해요" required/>
+    <label>지역</label>
+    <input name="region" placeholder="부산 남구" />
+    <button>요청 올리기</button>
+  </form>
+</section>
+
+<section class="card" style="max-width:960px">
+  <h3>현재 매칭 요청</h3>
+  <table>
+    <thead><tr><th>요청자</th><th>내용</th><th>지역</th><th>일시</th><th>신청</th></tr></thead>
+    <tbody>
+      <% (requests||[]).forEach(r => { %>
+        <tr>
+          <td><%= r.MEM_ID %></td>
+          <td><%= r.REQ_CONTENT %></td>
+          <td><%= r.REGION || '-' %></td>
+          <td><%= new Date(r.REQ_DATE).toISOString().slice(0,16).replace('T',' ') %></td>
+          <td>
+            <% if (!me || r.MEM_ID === me.mem_id) { %>
+              <em>-</em>
+            <% } else { %>
+              <form method="post" action="/match/apply" style="display:inline">
+                <input type="hidden" name="req_id" value="<%= r.REQ_ID %>"/>
+                <button>신청</button>
+              </form>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</section>
+
+<section class="card" style="max-width:960px">
+  <h3>내 요청에 들어온 신청</h3>
+  <table>
+    <thead><tr><th>REQ_ID</th><th>신청자</th><th>신청일시</th><th>승인</th></tr></thead>
+    <tbody>
+      <% (applies||[]).forEach(a => { %>
+        <tr>
+          <td><%= a.REQ_ID %></td>
+          <td><%= a.MEM_ID %></td>
+          <td><%= new Date(a.APPLY_DATE).toISOString().slice(0,16).replace('T',' ') %></td>
+          <td>
+            <% if (a.ACCEPT_YN === 'Y') { %>
+              <strong>승인됨</strong>
+            <% } else { %>
+              <form method="post" action="/match/accept" style="display:inline">
+                <input type="hidden" name="apply_id" value="<%= a.APPLY_ID %>"/>
+                <button>승인</button>
+              </form>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</section>

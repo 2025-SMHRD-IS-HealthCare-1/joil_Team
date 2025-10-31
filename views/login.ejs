@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+  <div class="wrap" style="max-width:420px;margin:40px auto">
+    <h1>로그인</h1>
+    <form method="post" action="/login" class="panel">
+      <label>ID</label>
+      <input name="id" required placeholder="admin01 = 관리자"/>
+      <label>PW</label>
+      <input name="pw" required type="password"/>
+      <button type="submit">로그인</button>
+    </form>
+  </div>
+</body>
+</html>

@@ -1,0 +1,11 @@
+/* src/public/style.css */
+*{box-sizing:border-box} body{font-family:system-ui,apple sd gothic neo,malgun gothic,Segoe UI,Arial}
+a{color:#4a23ff;text-decoration:none}
+.wrap{max-width:960px;margin:30px auto;padding:0 16px}
+.page-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.brand a{font-weight:700}
+.nav a{margin-left:12px}
+.panel{border:1px solid #eee;border-radius:12px;padding:16px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.04);margin-top:12px}
+label{display:block;margin:8px 0 4px}
+input{width:100%;padding:10px;border:1px solid #ddd;border-radius:8px}
+button{margin-top:12px;padding:10px 16px;border:0;border-radius:8px;background:#4a23ff;color:#fff;cursor:pointer}

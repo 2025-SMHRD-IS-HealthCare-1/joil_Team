@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>센서 수신 테스트</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        padding: 20px;
+      }
+      h1 {
+        font-weight: 700;
+      }
+      #banner {
+        background: #fff9c4; /* 노란색 배너 */
+        border: 1px solid #fbc02d;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 18px;
+        font-weight: 600;
+        color: #444;
+        margin-bottom: 20px;
+      }
+      .val {
+        font-weight: 700;
+        font-size: 24px;
+      }
+      .err {
+        color: #b00020;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>센서 수신 테스트</h1>
+
+    <!-- 🔸 노란 배너 (온습도 표시) -->
+    <div id="banner">
+      <span id="dht-text">🌡 온습도 센서 측정 대기 중...</span>
+    </div>
+
+    <label>api:
+      <input id="base" size="60"
+        value="http://192.168.219.216:8000/">
+    </label>
+    <button id="startBtn">시작</button>
+
+    <p>pir: <span id="pir" class="val">-</span></p>
+    <p>gps: <span id="gps" class="val">-</span></p>
+    <p>ts: <span id="ts" class="val">-</span></p>
+
+    <!-- 기존 센서 스크립트 (필요 시 다시 켜기) -->
+    <!-- <script src="sensor_client.js"></script> -->
+
+    <!-- ✅ 온습도 표시 전용 코드 -->
+    <script>
+  const $banner = document.getElementById("dht-text");
+  const $base = document.getElementById("base");
+  const $btn = document.getElementById("startBtn");
+  const $pir = document.getElementById("pir");
+  const $gps = document.getElementById("gps");
+  const $ts = document.getElementById("ts");
+
+  let timer = null;
+  let baseUrl = "";
+
+  function buildUrl(path) {
+    const base = $base.value.trim().replace(/\/+$/,'');
+    const u = new URL(path, base);
+    u.searchParams.set("ngrok-skip-browser-warning", "true");
+    return u.toString();
+  }
+
+  async function fetchJson(url) {
+    const r = await fetch(url, {
+      cache: "no-store",
+      headers: { "ngrok-skip-browser-warning": "true" }
+    });
+    const ct = r.headers.get("content-type") || "";
+    if (!r.ok) {
+      const text = await r.text();
+      throw new Error(`http ${r.status} ${r.statusText}: ${text.slice(0,120)}`);
+    }
+    if (!ct.includes("application/json")) {
+      const text = await r.text();
+      throw new Error(`json not returned (ct=${ct}): ${text.slice(0,120)}`);
+    }
+    return r.json();
+  }
+
+  async function refresh() {
+    if (!baseUrl) { $banner.textContent = "⚠ base url missing"; return; }
+    try {
+      const [dht, sensor, gps] = await Promise.all([
+        fetchJson(buildUrl("/dht")),
+        fetchJson(buildUrl("/sensor")),
+        fetchJson(buildUrl("/gps"))
+      ]);
+
+      const tc = (dht.temperature_c ?? dht.temp_c ?? "-");
+      const hu = (dht.humidity_pct ?? dht.humidity ?? "-");
+      const msg = dht.message || "ok";
+      $banner.textContent = `❄ ${msg} (🌡 ${tc}°C · 💧 ${hu}%)`;
+
+      $pir.textContent = sensor?.pir ?? "-";
+      $pir.style.color = (sensor.pir === 1) ? "#d32f2f" : "#2e7d32";
+
+      if (gps.ok) {
+        $gps.textContent = `${gps.lat.toFixed(6)}, ${gps.lon.toFixed(6)}`;
+      } else {
+        $gps.textContent = gps.message;
+      }
+
+      const tsVal = sensor?.ts ? new Date(sensor.ts * 1000).toLocaleString() : "-";
+      $ts.textContent = tsVal;
+
+    } catch (e) {
+      $banner.textContent = `⚠ fetch failed: ${e.message}`;
+    }
+  }
+
+  $btn.addEventListener("click", async () => {
+    baseUrl = $base.value.trim();
+    if (!baseUrl) { $banner.textContent = "⚠ base url missing"; return; }
+    if (timer) clearInterval(timer);
+
+    try {
+      await fetchJson(buildUrl("/health"));
+      $banner.textContent = "✅ health ok, polling sensors...";
+    } catch (e) {
+      $banner.textContent = `⚠ health failed: ${e.message}`;
+      return;
+    }
+
+    await refresh();
+    timer = setInterval(refresh, 2000);
+  });
+</script>
+
+
+  </body>
+</html>

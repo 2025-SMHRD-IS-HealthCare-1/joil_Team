@@ -1,26 +1,44 @@
-const mysql = require("mysql2");
+const mysql = require('mysql2/promise');
+const path = require('path');
+require('dotenv').config({ path: path.resolve(process.cwd(), '.env') });
 
-const db = mysql.createPool({
-    host: "localhost",
-    port: 3306,
-    user: "root",
-    password: "12345",
-    database: "serverjs"
+// ✅ 환경변수 우선, 없으면 기본값 사용
+const cfg = {
+  host: process.env.DB_HOST || "project-db-campus.smhrd.com",
+  port: Number(process.env.DB_PORT) || 3308,
+  user: process.env.DB_USER || "campus_25IS_health1_p2_1",
+  password: process.env.DB_PASSWORD || "smhrd1",
+  database: process.env.DB_NAME || "campus_25IS_health1_p2_1",
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+};
+
+// ✅ 민감정보 마스킹 로그
+console.log('[DB] config =', {
+  host: cfg.host,
+  port: cfg.port,
+  user: cfg.user,
+  database: cfg.database,
+  passwordLen: cfg.password ? cfg.password.length : 0,
 });
 
-// 연결 확인 코드
-db.getConnection((err, connection) => {
-    // early return pattern
-    // 에러를 만났을 때, 함수를 상단에서 조기 종료시키는 패턴
-    // 실제로는 if~els와 같은 효과
-    if (err) {
-        console.log(`db connection failed : ${err.message}`);
-        return;            // error가 발생하면 함수를 조기 종료할 수 있게 return
-    }
+const db = mysql.createPool(cfg);
 
-    console.log("db connection success");
-    connection.release();  // release로 함수 종료하면 getConnection반환
-});
+// ✅ 연결 확인 함수
+async function checkDbConnection() {
+  try {
+    const connection = await db.getConnection();
+    const [[{ db: dbName }]] = await connection.query('SELECT DATABASE() AS db');
+    console.log(`✅ [DB] Connection success. database=${dbName}`);
+    connection.release();
+  } catch (err) {
+    console.error(`❌ [DB] Connection failed: ${err.message}`);
+  }
+}
+
+// 앱 시작 시 1회 검사
+checkDbConnection();
 
 module.exports = db;
 
