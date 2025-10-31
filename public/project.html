@@ -277,11 +277,11 @@ window.rasp_base = location.origin + '/rapi';
 
       <h2>🏠 어서오세요! VitaMind입니다. 👥</h2>
       <p style="font-size:28px; font-weight:normal; margin-bottom:40px;">
-        "친구 찾아줘", "배추 담아줘" 라고 말씀해보세요.
+        "날씨" "친구" "시장" "지도" "일정" "긴급" "친구 찾기" 라고 말씀해보세요.
       </p>
       <div class="home-menu">
         <button onclick="show('friends')">👥<br>친구</button>
-        <button onclick="show('mapSection')">🛒<br>장보기</button>
+        <button onclick="show('mapSection')">🛒<br>시장 & 복지관</button>
         <button onclick="show('map')">🗺️<br>지도</button>
         <button onclick="show('schedule')">📅<br>우리들의 일정</button>
         <button onclick="show('emergency')" class="emergency-btn">🚨<br>긴급 연락</button>
@@ -757,6 +757,48 @@ function getCookie(name) {
     window.location.href = `tel:${phone}`;
   }
 
+  // ====== TTS helper (ko-KR) ======
+function speak(text) {
+  try {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ko-KR';
+    // 같은 발화가 여러 번 겹치지 않도록 cancel
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  } catch (e) {
+    console.warn('TTS error:', e);
+  }
+}
+
+// 인식된 텍스트에서 우리가 쓰는 키워드를 뽑아내기
+function extractKeyword(raw) {
+  const t = String(raw || '').replace(/\s+/g, '');
+  if ((t.includes('친구찾아줘')) || (t.includes('근처') && t.includes('친구'))) return '친구 찾기';
+  if (t.includes('친구')) return '친구';
+  if (t.includes('시장') || t.includes('복지관') || t.includes('장보기')) return '시장';
+  if (t.includes('지도')) return '지도';
+  if (t.includes('일정')) return '일정';
+  if (t.includes('긴급')) return '긴급';
+  return null;
+}
+
+// 키워드에 맞는 멘트를 만들어서 말하기
+function announceByKeyword(raw) {
+  const key = extractKeyword(raw);
+  if (!key) return;
+
+  const phrase = {
+    '친구 찾기': '근처 친구 찾기로 이동할게.',
+    '친구': '친구 섹션으로 이동할게.',
+    '시장': '시장과 복지관으로 이동할게.',
+    '지도': '지도로 이동할게.',
+    '일정': '우리들의 일정으로 이동할게.',
+    '긴급': '긴급 연락 화면으로 이동할게.'
+  }[key];
+
+  if (phrase) speak(phrase);
+}
+
   // ===== 음성 인식 =====
   let recognizing = false;
   let recognition;
@@ -781,6 +823,7 @@ function getCookie(name) {
       const text = event.results[0][0].transcript.trim();
       speechStatus.textContent = `"${text}"`;
       handleVoiceCommand(text);
+      announceByKeyword(text);   // ← 키워드 TTS
     };
 
     recognition.onend = () => {
@@ -799,16 +842,30 @@ function getCookie(name) {
     else recognition.start();
   }
 
+  
+
   // ===== 음성 명령 처리 =====
-  function speak(msg) {
-    try {
-      const u = new SpeechSynthesisUtterance(msg);
-      u.lang = "ko-KR";
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(u);
-    } catch (e) {
-      // 브라우저 미지원이면 무시
+  function handleVoiceCommand(text) {
+    if (text.includes("친구") && (text.includes("찾아") || text.includes("찾아줘") || text.includes("근처"))) {
+      // "친구 찾아줘", "근처 친구" 등일 경우 근처 찾기 실행
+      findNearbyFriends();
+      return;
     }
+
+    if (text.includes("친구")) {
+      show("friends");
+      renderFriends();
+    } 
+    else if (["운동","산책","요리","영화","음악"].some(c => text.includes(c))) {
+      show("friends");
+      const category = ["운동","산책","요리","영화","음악"].find(c => text.includes(c));
+      renderFriends(friends.filter(f => f.category === category));
+      speechStatus.textContent = `${category} 친구를 보여드릴게요.`;
+    }
+    else if (text.includes("시장") || text.includes("복지관")) show("mapSection");
+    else if (text.includes("알림")) show("alerts");
+    else if (text.includes("전화")) show("call");
+    else if (text.includes("홈")) show("home");
   }
 
   // ===== PIR 표시 유틸 =====
@@ -910,6 +967,26 @@ document.addEventListener('DOMContentLoaded', startPirPolling);
     else feel = "추워요";
     return `지금 기온은 ${t}도, ${desc}. 오늘은 ${feel}.`;
   }
+
+  // === 로그인 직후 자동 날씨 읽기 (1회용) ===
+// 위치: getWeatherSummary() 바로 아래에 붙이기
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    // 1) 플래그 확인
+    const flag = localStorage.getItem('speak_weather_once');   // '1'이면 실행
+    if (flag !== '1') return;                                  // 없으면 종료
+    localStorage.removeItem('speak_weather_once');             // 1회용 소비
+
+    // 2) 음성엔진 준비를 위해 살짝 대기 (보이스 로드 안정화)
+    await new Promise(r => setTimeout(r, 200));                // 200ms 대기
+
+    // 3) 날씨 요약 → TTS
+    const summary = await getWeatherSummary();                 // 현재 위치 or 기본 좌표
+    speak(summary);                                            // 한국어 음성 합성
+  } catch (e) {
+    console.warn('auto weather tts failed:', e);               // 실패 로그
+  }
+});
 
   // ===== 새 음성 명령 처리 =====
   async function handleVoiceCommand(text) {

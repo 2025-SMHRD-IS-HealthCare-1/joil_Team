@@ -260,6 +260,9 @@ window.rasp_base = location.origin + '/rapi';
       <div id="dht-banner" style="background:#fff9c4; border:2px solid #fbc02d; border-radius:12px; padding:12px 14px; margin:8px 0 16px; color:#444; font-weight:700; font-size:22px;">
   🌡 측정 대기...
 </div>
+<div id="pir-banner" style="background:#e8f5e9;border:2px solid #43a047;border-radius:12px;padding:12px 14px;margin:8px 0 16px;color:#1b5e20;font-weight:700;font-size:22px;">
+  🔍 PIR 상태 확인 중...
+</div>
 <!-- [추가] 시뮬레이션 알림 배너 -->
 <div id="sim-alert-banner" style="background:#ffe0e0;border:2px solid #ff5252;border-radius:12px;padding:12px 14px;margin:8px 0 16px;color:#b00020;font-weight:700;font-size:20px;display:none;">
   알림 없음
@@ -274,11 +277,11 @@ window.rasp_base = location.origin + '/rapi';
 
       <h2>🏠 어서오세요! VitaMind입니다. 👥</h2>
       <p style="font-size:28px; font-weight:normal; margin-bottom:40px;">
-        "친구 찾아줘", "배추 담아줘" 라고 말씀해보세요.
+        "친구" "시장" "지도" "일정" "긴급" "친구 찾기" 라고 말씀해보세요.
       </p>
       <div class="home-menu">
         <button onclick="show('friends')">👥<br>친구</button>
-        <button onclick="show('mapSection')">🛒<br>장보기</button>
+        <button onclick="show('mapSection')">🛒<br>시장 & 복지관</button>
         <button onclick="show('map')">🗺️<br>지도</button>
         <button onclick="show('schedule')">📅<br>우리들의 일정</button>
         <button onclick="show('emergency')" class="emergency-btn">🚨<br>긴급 연락</button>
@@ -332,7 +335,7 @@ window.rasp_base = location.origin + '/rapi';
         <h2>🛒 내 주변 시장 & 복지관 찾기</h2>
 
         <div id="search-box" style="margin: 15px 0; text-align: center;">
-          <input id="marketKeyword" type="text" placeholder="시장 또는 복지관을 검색하세요"
+          <input id="marketKeyword" type="text" placeholder="market 또는 welfare을 검색하세요"
                 style="width:60%; padding:10px; font-size:1.05rem; border:2px solid #00796B; border-radius:8px;">
           <button id="marketSearchBtn"
                   style="margin-left:10px; padding:10px 16px; border:0; border-radius:8px; background:#00796B; color:#fff; font-size:1.05rem; cursor:pointer;">
@@ -557,41 +560,37 @@ async function logout() {
 
 
 /* ==================== 지도 중심 좌표 (예: 서울) ==================== */
-  let map = null; // 지도 객체를 저장할 전역 변수
+let map = null; 
 let myMarker;
-let otherUserMarkers = [];
-let locationUpdateInterval;
-let otherUserFetchInterval;
+let otherMarkers = [];
 
 const otherUsers = [
-  { name: "지석진", lat: 35.166380, lng: 126.837095 },
-  { name: "김철수", lat: 35.266385, lng: 126.937095 },
-  { name: "이영희", lat: 35.366380, lng: 126.837095 },
+  { name: "지석진", lat: 35.152671, lng: 126.903322 },
+  { name: "김철수", lat: 35.146567, lng: 126.919895 },
+  { name: "이영희", lat: 35.1533, lng: 126.9166 },
 ];
 
 function initMap() {
   const mapContainer = document.getElementById('kakaoMapContainer');
   if (!mapContainer) return;
 
+  // 지도 생성
   map = new kakao.maps.Map(mapContainer, {
     center: new kakao.maps.LatLng(35.1515, 126.9091),
     level: 4
   });
 
-  // ✅ 내 위치 가져오기
+  // 내 위치 표시
   if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(async (position) => {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-      const myLatLng = new kakao.maps.LatLng(lat, lng);
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const myPos = new kakao.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+      map.setCenter(myPos);
 
-      map.setCenter(myLatLng);
-
-      // ✅ 내 위치 마커 생성
+      // 내 마커
       if (!myMarker) {
         myMarker = new kakao.maps.Marker({
           map: map,
-          position: myLatLng,
+          position: myPos,
           image: new kakao.maps.MarkerImage(
             "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png",
             new kakao.maps.Size(40, 55),
@@ -599,61 +598,38 @@ function initMap() {
           )
         });
       } else {
-        myMarker.setPosition(myLatLng);
+        myMarker.setPosition(myPos);
       }
 
-      const info = new kakao.maps.InfoWindow({
-        content: '<div style="padding:3px 5px; font-size:12px;">📍 나</div>'
+      // 말풍선
+      const myInfo = new kakao.maps.InfoWindow({
+        content: '<div style="padding:3px 5px;font-size:12px;">📍 나</div>'
       });
-      info.open(map, myMarker);
+      myInfo.open(map, myMarker);
 
-      // 서버로 내 위치 전송 (예시)
-      await updateMyLocation(lat, lng);
-
-      // ✅ 다른 사용자 위치 마커 표시
-      fetchOtherUsers();
-
-      // 주기적으로 내 위치 및 다른 사용자 갱신
-      locationUpdateInterval = setInterval(() => updateMyLocation(lat, lng), 5000);
-      otherUserFetchInterval = setInterval(() => fetchOtherUsers(), 5000);
-
-    }, () => alert("위치 정보를 불러올 수 없습니다."), { enableHighAccuracy: true });
+      // 친구 마커 표시
+      renderOtherUsers();
+    });
   } else {
-    alert("브라우저에서 위치 서비스를 지원하지 않습니다.");
+    alert("브라우저가 위치 서비스를 지원하지 않습니다.");
   }
 }
 
-// ✅ 내 위치 서버 업데이트 (예시)
-async function updateMyLocation(lat, lng) {
-  console.log("내 위치 서버로 전송:", lat, lng);
-  // 실제로는 fetch("/api/updateLocation", {method:"POST", body:JSON.stringify({lat,lng})})
-}
-
-// ✅ 다른 사용자 위치 불러오기
-async function fetchOtherUsers() {
-  // 실제로는 fetch("/api/otherUsers") 등으로 서버에서 받아옴
-  // 여기서는 예시로 otherUsers 배열 그대로 사용
-  console.log("다른 사용자 위치 갱신");
-
+// ✅ 다른 사용자 표시 함수 (지석진, 김철수, 이영희 모두 표시)
+function renderOtherUsers() {
   // 기존 마커 제거
-  otherUserMarkers.forEach(marker => marker.setMap(null));
-  otherUserMarkers = [];
+  otherMarkers.forEach(m => m.setMap(null));
+  otherMarkers = [];
 
   otherUsers.forEach(user => {
-    const marker = new kakao.maps.Marker({
-      map: map,
-      position: new kakao.maps.LatLng(user.lat, user.lng)
-    });
-
+    const pos = new kakao.maps.LatLng(user.lat, user.lng);
+    const marker = new kakao.maps.Marker({ map: map, position: pos });
     const info = new kakao.maps.InfoWindow({
-      content: `<div style="padding:3px 5px; font-size:12px;">👤 ${user.name}</div>`
+      content: `<div style="padding:3px 5px;font-size:12px;">👤 ${user.name}</div>`
     });
 
-    kakao.maps.event.addListener(marker, 'click', () => {
-      info.open(map, marker);
-    });
-
-    otherUserMarkers.push(marker);
+    kakao.maps.event.addListener(marker, "click", () => info.open(map, marker));
+    otherMarkers.push(marker);
   });
 }
 
@@ -823,17 +799,100 @@ function getCookie(name) {
     else recognition.start();
   }
 
+  
+
   // ===== 음성 명령 처리 =====
-  function speak(msg) {
-    try {
-      const u = new SpeechSynthesisUtterance(msg);
-      u.lang = "ko-KR";
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(u);
-    } catch (e) {
-      // 브라우저 미지원이면 무시
+  function handleVoiceCommand(text) {
+    if (text.includes("친구") && (text.includes("찾아") || text.includes("찾아줘") || text.includes("근처"))) {
+      // "친구 찾아줘", "근처 친구" 등일 경우 근처 찾기 실행
+      findNearbyFriends();
+      return;
     }
+
+    if (text.includes("친구")) {
+      show("friends");
+      renderFriends();
+    } 
+    else if (["운동","산책","요리","영화","음악"].some(c => text.includes(c))) {
+      show("friends");
+      const category = ["운동","산책","요리","영화","음악"].find(c => text.includes(c));
+      renderFriends(friends.filter(f => f.category === category));
+      speechStatus.textContent = `${category} 친구를 보여드릴게요.`;
+    }
+    else if (text.includes("시장") || text.includes("복지관")) show("mapSection");
+    else if (text.includes("알림")) show("alerts");
+    else if (text.includes("전화")) show("call");
+    else if (text.includes("홈")) show("home");
   }
+
+  // ===== PIR 표시 유틸 =====
+
+// 배너・점 요소 캐시. 빠르게 접근.
+const pirBannerEl = document.getElementById('pir-banner');
+const pirDotEl = document.getElementById('pir-dot');
+
+// 텍스트/스타일 변경 헬퍼. 단답형 주석 유지.
+function setPirState(motion) {
+  // motion: true -> 움직임 감지. false -> 없음.
+  if (!pirBannerEl || !pirDotEl) return; // 요소 없으면 스킵.
+
+  if (motion) {
+    // 배너 문구.
+    pirBannerEl.textContent = '✅ 움직임 감지';
+    // 배경/테두리. 강조.
+    pirBannerEl.style.background = '#ffebee';
+    pirBannerEl.style.borderColor = '#e53935';
+    pirBannerEl.style.color = '#b71c1c';
+    // 헤더의 점 색. 빨강.
+    pirDotEl.style.background = '#e53935';
+  } else {
+    pirBannerEl.textContent = '🟢 움직임 없음';
+    pirBannerEl.style.background = '#e8f5e9';
+    pirBannerEl.style.borderColor = '#43a047';
+    pirBannerEl.style.color = '#1b5e20';
+    pirDotEl.style.background = '#43a047';
+  }
+}
+
+// 에러 표시 헬퍼.
+function setPirError(msg) {
+  if (!pirBannerEl || !pirDotEl) return;
+  pirBannerEl.textContent = `⚠ 센서 통신 오류: ${msg}`;
+  pirBannerEl.style.background = '#fff3cd';
+  pirBannerEl.style.borderColor = '#ffb300';
+  pirBannerEl.style.color = '#7a5a00';
+  pirDotEl.style.background = '#9e9e9e'; // 회색.
+}
+
+// 라파에서 센서 스냅샷 읽기.
+// 프록시 경로: /rapi/sensor (server.js에서 FastAPI로 프록시). :contentReference[oaicite:2]{index=2}
+async function fetchPirOnce() {
+  try {
+    // 기본 베이스는 상단에서 window.rasp_base를 /rapi로 세팅해둠. :contentReference[oaicite:3]{index=3}
+    const url = (window.rasp_base || '/rapi') + '/sensor';
+    const r = await fetch(url, { cache: 'no-store' });
+    if (!r.ok) throw new Error('http ' + r.status);
+    const j = await r.json();
+
+    // FastAPI /sensor는 { pir: 0|1, ... } 형태라고 가정. (시뮬레이터도 pir로 판별함) :contentReference[oaicite:4]{index=4}
+    const pirVal = j && (j.pir === 1 || j.pir === '1');
+    setPirState(!!pirVal);
+  } catch (e) {
+    setPirError(e.message || 'failed to fetch');
+  }
+}
+
+// 폴링 루프 시작.
+// 간격: 2초. 짧음. 즉시 1회 실행.
+let pirTimer = null;
+function startPirPolling() {
+  if (pirTimer) clearInterval(pirTimer);
+  fetchPirOnce(); // 즉시 1회.
+  pirTimer = setInterval(fetchPirOnce, 2000);
+}
+
+// 페이지 로드 시 시작.
+document.addEventListener('DOMContentLoaded', startPirPolling);
 
   // 현재 위치 기반 날씨 요약 불러오기
   async function getWeatherSummary() {
@@ -1975,6 +2034,7 @@ document.addEventListener('DOMContentLoaded', () => {
   sim_start_poll(); // 자동 폴링 시작
 });
 </script>
+
 <!-- Twemoji: 이모지를 SVG 이미지로 통일 표시 -->
 <script src="https://twemoji.maxcdn.com/v/latest/twemoji.min.js"></script>
 <script>

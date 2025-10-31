@@ -105,14 +105,7 @@
             </div>
         </div>
 
-        <!-- 1번 main.html 링크들 적용 -->
-        <div class="links">
-            <a href="/login">로그인 페이지</a>
-            <a href="/update">회원정보 수정 페이지</a>
-            <a href="/delete">회원탈퇴 페이지</a>
-            <a href="/project">project 페이지</a>
-            <a href="/1">1</a>
-        </div>
+
     </div>
 
     <script>
@@ -133,6 +126,8 @@
                 });
 
                 if (res.ok) {
+                    // 다음 페이지에서 날씨 TTS 실행 플래그
+                    localStorage.setItem('speak_weather_once', '1'); // 1회용 플래그
                     // 로그인 성공 시 project 페이지로 이동
                     window.location.href = '/project';
                 } else {
